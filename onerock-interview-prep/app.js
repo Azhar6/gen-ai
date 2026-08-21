@@ -42,6 +42,62 @@
     }).join("");
   }
 
+  function ensureSentence(text) {
+    var t = String(text || "").trim();
+    if (!t) return "";
+    if (!/[.!?]$/.test(t)) t += ".";
+    return t.replace(/\s+/g, " ");
+  }
+
+  function normalizeAnswerLine(line) {
+    var t = String(line || "").trim();
+    if (!t) return "";
+    if (/^i would\b/i.test(t)) {
+      t = t.replace(/^i would\b/i, "In practice, I would");
+    }
+    if (/^do not\b/i.test(t)) {
+      t = t.replace(/^do not\b/i, "Do not");
+    }
+    return ensureSentence(t);
+  }
+
+  function uniqLines(lines) {
+    var out = [];
+    var seen = {};
+    (lines || []).forEach(function (line) {
+      var clean = normalizeAnswerLine(line);
+      if (!clean) return;
+      var key = clean.toLowerCase();
+      if (seen[key]) return;
+      seen[key] = true;
+      out.push(clean);
+    });
+    return out;
+  }
+
+  function buildAnswerBlocks(q) {
+    var raw = q.answer && q.answer.length ? q.answer : (q.simpleAnswer || []);
+    var lines = uniqLines(raw);
+    var one = normalizeAnswerLine(q.oneLiner || "");
+    if (one && lines.indexOf(one) === -1) lines.unshift(one);
+
+    var explanation = lines.slice(0, 6);
+    if (!explanation.length && one) explanation = [one];
+
+    var support = lines.slice(1, 6);
+    var guard = support.find(function (line) {
+      return /(validate|retry|human|check|safe|risk|monitor|alert|schema|timeout|idempotent)/i.test(line);
+    }) || support[support.length - 1] || one;
+
+    var interview = [];
+    if (one) interview.push(one);
+    if (support[0] && support[0] !== one) interview.push(support[0]);
+    if (guard && interview.indexOf(guard) === -1) interview.push(guard);
+    if (!interview.length) interview = explanation.slice(0, 3);
+
+    return { explanation: explanation, interview: interview };
+  }
+
   var CHART_COLORS = ["#1f6f5b", "#c47b2b", "#4a6fa5", "#9b3d2a", "#6b5b95", "#5a7a3a", "#8a5a3a"];
 
   function parseChartNumber(text) {
@@ -466,25 +522,13 @@
     html += "<h2>" + escapeHtml(q.title) + "</h2>";
     html += "</div>";
 
-    var answer = q.answer && q.answer.length ? q.answer : (q.simpleAnswer || []);
-    if (q.oneLiner && answer.indexOf(q.oneLiner) === -1) {
-      answer = [q.oneLiner].concat(answer);
-    }
-    html += '<section class="section"><h3>Answer</h3>' + paras(answer) + "</section>";
+    var blocks = buildAnswerBlocks(q);
+    html += '<section class="section"><h3>Explanation</h3>' + paras(blocks.explanation) + "</section>";
+    html += '<section class="section"><h3>Interview-ready answer</h3>' + paras(blocks.interview) + "</section>";
 
     (tablesForQuestion(q) || []).forEach(function (t) {
       html += '<section class="section">' + renderTable(t) + "</section>";
     });
-
-    var chart = chartForQuestion(q);
-    if (chart) {
-      html += '<section class="section"><h3>Chart</h3>' + renderChart(chart) + "</section>";
-    }
-
-    var diagram = diagramForQuestion(q);
-    if (diagram) {
-      html += '<section class="section"><h3>Flow</h3>' + renderDiagram(diagram) + "</section>";
-    }
 
     if (q.example && (q.example.story || q.example.walkthrough || q.example.code || q.example.agentOutput || (q.example.tables && q.example.tables.length))) {
       html += '<section class="section"><h3>' + escapeHtml(q.example.title || "Example") + "</h3>";
