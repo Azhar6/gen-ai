@@ -23,31 +23,34 @@
     <div id="scrim" class="scrim" hidden></div>
 
     <aside id="sidebar" class="sidebar">
-      <div class="sidebar-head">
-        <div class="brand">
-          <p class="brand-kicker">AI Engineer</p>
-          <h1>Topics</h1>
+      <div class="sidebar-top">
+        <div class="sidebar-head">
+          <div class="brand">
+            <p class="brand-kicker">AI Engineer</p>
+            <h1>Question Navigator</h1>
+          </div>
+          <button type="button" id="btnCloseSidebar" class="icon-btn close-sidebar" aria-label="Close menu">
+            <span aria-hidden="true">×</span>
+          </button>
         </div>
-        <button type="button" id="btnCloseSidebar" class="icon-btn close-sidebar" aria-label="Close menu">
-          <span aria-hidden="true">×</span>
-        </button>
-      </div>
-      <div class="sidebar-tools">
-        <label class="search-wrap">
-          <span class="search-icon" aria-hidden="true"></span>
-          <span class="sr-only">Search questions</span>
-          <input id="search" type="search" placeholder="Search topics" autocomplete="off" />
-          <button type="button" id="btnClearSearch" class="search-clear" hidden aria-label="Clear search">×</button>
-        </label>
-        <div class="chips" role="tablist" aria-label="Filter questions">
-          <button type="button" class="chip active" data-filter="all">All</button>
-          <button type="button" class="chip" data-filter="priority">First 15</button>
-          <button type="button" class="chip" data-filter="todo">To do</button>
-          <button type="button" class="chip" data-filter="done">Done</button>
-        </div>
-        <div class="progress-block">
-          <div class="side-progress"><span id="progressBar"></span></div>
-          <p id="progressLine" class="progress-line"></p>
+        <div class="sidebar-tools">
+          <label class="search-wrap">
+            <span class="search-icon" aria-hidden="true"></span>
+            <span class="sr-only">Search questions</span>
+            <input id="search" type="search" placeholder="Search by topic or keyword" autocomplete="off" />
+            <button type="button" id="btnClearSearch" class="search-clear" hidden aria-label="Clear search">×</button>
+          </label>
+          <div class="chips" role="tablist" aria-label="Filter questions">
+            <button type="button" class="chip active" data-filter="all">All</button>
+            <button type="button" class="chip" data-filter="priority">First 15</button>
+            <button type="button" class="chip" data-filter="todo">To do</button>
+            <button type="button" class="chip" data-filter="done">Done</button>
+          </div>
+          <div class="progress-block">
+            <div class="side-progress"><span id="progressBar"></span></div>
+            <p id="progressLine" class="progress-line"></p>
+          </div>
+          <div id="topicTabs" class="topic-tabs" role="tablist" aria-label="Filter by topic"></div>
         </div>
       </div>
       <p class="sr-only" id="brandSub"></p>
@@ -56,6 +59,7 @@
         <button type="button" id="btnLibrary" class="btn ghost library-link">All topics</button>
         <button type="button" id="btnInstallSidebar" class="btn install-btn" hidden>Install app</button>
         <p id="iosHint" class="ios-hint" hidden>iPhone: Share → Add to Home Screen</p>
+        <p id="androidHint" class="ios-hint" hidden>Android: browser menu (⋮) → Install app / Add to Home screen</p>
       </div>
     </aside>
 
@@ -66,17 +70,26 @@
         </button>
         <p id="mobileTitle" class="header-title">Question library</p>
         <p id="packLabel" class="sr-only">Practice pack</p>
-        <details class="more">
-          <summary>More</summary>
-          <div class="more-menu">
-            <button type="button" id="btnExportOfficial">Download Q&amp;A JSON</button>
-            <button type="button" id="btnExportUser">Export my notes</button>
-            <label class="file-btn">
+        <div class="more">
+          <button
+            type="button"
+            id="btnMore"
+            class="more-toggle"
+            aria-expanded="false"
+            aria-haspopup="menu"
+            aria-controls="moreMenu"
+          >
+            More
+          </button>
+          <div id="moreMenu" class="more-menu" role="menu" hidden>
+            <button type="button" id="btnExportOfficial" role="menuitem">Download Q&amp;A JSON</button>
+            <button type="button" id="btnExportUser" role="menuitem">Export my notes</button>
+            <label class="file-btn" role="menuitem">
               Import notes
               <input type="file" id="importUser" accept="application/json" hidden />
             </label>
           </div>
-        </details>
+        </div>
         <button type="button" id="btnInstall" class="btn install-btn header-install" hidden>Install</button>
       </header>
       <article id="panel" class="panel"></article>

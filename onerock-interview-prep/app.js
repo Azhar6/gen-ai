@@ -5,10 +5,14 @@
   let view = "library";
   let filter = "all";
   let search = "";
-  let openGroups = {};
+  let navTopic = "all";
   let topicScope = null;
 
   function $(id) { return document.getElementById(id); }
+  function isAndroidDevice() { return /android/i.test(navigator.userAgent || ""); }
+  function isStandaloneMode() {
+    return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
+  }
 
   function loadUser() {
     try { return JSON.parse(localStorage.getItem(USER_KEY) || "{}"); }
@@ -36,6 +40,381 @@
     return (list || []).map(function (p) {
       return "<p>" + escapeHtml(p) + "</p>";
     }).join("");
+  }
+
+  function points(list) {
+    var rows = (list || []).filter(function (p) { return String(p || "").trim().length > 0; });
+    if (!rows.length) return "";
+    return '<ul class="answer-points">' + rows.map(function (p) {
+      return "<li>" + escapeHtml(p) + "</li>";
+    }).join("") + "</ul>";
+  }
+
+  function ensureSentence(text) {
+    var t = String(text || "").trim();
+    if (!t) return "";
+    if (!/[.!?]$/.test(t)) t += ".";
+    return t.replace(/\s+/g, " ");
+  }
+
+  function sentenceClause(text) {
+    return normalizeAnswerLine(text).replace(/[.!?]+$/, "").trim();
+  }
+
+  function composeInterviewSentence(prefix, line) {
+    var clause = sentenceClause(line);
+    if (!clause) return "";
+    return ensureSentence(prefix + clause);
+  }
+
+  function normalizeAnswerLine(line) {
+    var t = String(line || "").trim();
+    if (!t) return "";
+    if (/^i would\b/i.test(t)) {
+      t = t.replace(/^i would\b/i, "In practice, I would");
+    }
+    if (/^do not\b/i.test(t)) {
+      t = t.replace(/^do not\b/i, "Do not");
+    }
+    return ensureSentence(t);
+  }
+
+  function uniqLines(lines) {
+    var out = [];
+    var seen = {};
+    (lines || []).forEach(function (line) {
+      var clean = normalizeAnswerLine(line);
+      if (!clean) return;
+      var key = clean.toLowerCase();
+      if (seen[key]) return;
+      seen[key] = true;
+      out.push(clean);
+    });
+    return out;
+  }
+
+  function questionExampleLine(q) {
+    if (q.example && q.example.story) {
+      return ensureSentence("For example, " + sentenceClause(q.example.story));
+    }
+    if (q.example && q.example.walkthrough && q.example.walkthrough.length) {
+      var first = q.example.walkthrough[0] || {};
+      var parts = [first.step, first.result, first.detail].filter(Boolean).map(sentenceClause).filter(Boolean);
+      if (parts.length) return ensureSentence("For example, " + parts.join(" — "));
+    }
+    if (q.tables && q.tables.length && q.tables[0].rows && q.tables[0].rows.length) {
+      var row = q.tables[0].rows[0] || [];
+      if (row[0] && row[1]) {
+        return ensureSentence("For example, in practice we check " + sentenceClause(row[0]) + " by using " + sentenceClause(row[1]));
+      }
+    }
+    var bySection = {
+      etl: "For example, in a daily data pipeline, validate the input file first, then load with idempotent writes so reruns do not create duplicates.",
+      sql: "For example, when data does not match, run a keyed join to separate missing rows from value mismatches before taking action.",
+      agents: "For example, in a support workflow, use deterministic rules first and let the agent handle only the unresolved cases.",
+      rag: "For example, retrieve policy text first and then answer from those passages instead of relying on model memory.",
+      production: "For example, set timeouts, retries, and monitoring before exposing the feature to real users.",
+      python: "For example, use a generator to process a large file line by line instead of loading everything into memory.",
+      llm: "For example, verify every important number against tool output before showing it to the user.",
+      langgraph: "For example, route the request through tools, validate output, and only then generate the final response."
+    };
+    return bySection[q.sectionId] || "";
+  }
+
+  function buildAnswerBlocks(q) {
+    var raw = q.answer && q.answer.length ? q.answer : (q.simpleAnswer || []);
+    var lines = uniqLines(raw);
+    var one = normalizeAnswerLine(q.oneLiner || "");
+    if (one && lines.indexOf(one) === -1) lines.unshift(one);
+
+    var explanation = lines.slice(0, 7);
+    var exampleLine = questionExampleLine(q);
+    if (exampleLine && explanation.length < 7) explanation.push(exampleLine);
+    explanation = uniqLines(explanation);
+    if (!explanation.length && one) explanation = [one];
+
+    var support = lines.slice(1, 7);
+    var guard = support.find(function (line) {
+      return /(validate|retry|human|check|safe|risk|monitor|alert|schema|timeout|idempotent)/i.test(line);
+    }) || explanation[explanation.length - 1] || one;
+    var approach = support[0] || explanation[1] || one;
+    var implementation = support[1] || explanation[2] || approach;
+
+    var interview = uniqLines([
+      composeInterviewSentence("The core idea is ", one || approach),
+      composeInterviewSentence("The practical approach is to ", approach),
+      composeInterviewSentence("In implementation, this usually means ", implementation),
+      composeInterviewSentence("A key reliability check is ", guard),
+      exampleLine
+    ]);
+    if (!interview.length) interview = explanation.slice(0, 5);
+
+    return { explanation: explanation, interview: interview };
+  }
+
+  function buildCodeExample(q) {
+    var existing = q.example && q.example.code ? String(q.example.code).trim() : "";
+    if (existing) {
+      return { title: q.example.codeTitle || "Code example", code: existing };
+    }
+
+    var text = ((q.title || "") + " " + (q.category || "") + " " + (q.oneLiner || "")).toLowerCase();
+    function mk(title, code) { return { title: title, code: code }; }
+
+    if (/(join|lag|lead|group by|cte|window|duplicate|query|sql)/.test(text) || q.sectionId === "sql") {
+      return mk("Code example (SQL)", [
+        "WITH web AS (",
+        "  SELECT order_id, item, qty, price FROM web_orders",
+        "), wh AS (",
+        "  SELECT order_id, item, qty, price FROM warehouse_orders",
+        ")",
+        "SELECT",
+        "  COALESCE(w.order_id, h.order_id) AS order_id,",
+        "  CASE",
+        "    WHEN w.order_id IS NULL THEN 'missing_in_web'",
+        "    WHEN h.order_id IS NULL THEN 'missing_in_wh'",
+        "    WHEN w.qty <> h.qty THEN 'qty_mismatch'",
+        "    WHEN w.price <> h.price THEN 'price_mismatch'",
+        "    ELSE 'matched'",
+        "  END AS status",
+        "FROM web w",
+        "FULL OUTER JOIN wh h ON w.order_id = h.order_id;",
+      ].join("\n"));
+    }
+
+    if (/(retry|backoff|timeout)/.test(text)) {
+      return mk("Code example (Python retry)", [
+        "import time, random",
+        "",
+        "def call_with_retry(fn, retries=2):",
+        "    delay = 0.5",
+        "    for attempt in range(retries + 1):",
+        "        try:",
+        "            return fn()",
+        "        except TimeoutError:",
+        "            if attempt == retries:",
+        "                raise",
+        "            time.sleep(delay + random.uniform(0, 0.2))",
+        "            delay *= 2",
+      ].join("\n"));
+    }
+
+    if (/(etl|pipeline|csv|chunk|idempotent|incremental|schema)/.test(text) || q.sectionId === "etl") {
+      return mk("Code example (ETL with idempotent load)", [
+        "import polars as pl",
+        "",
+        "scan = pl.scan_csv('orders_2026-08-21.csv')",
+        "clean = (",
+        "    scan",
+        "    .drop_nulls(['order_id', 'item'])",
+        "    .with_columns(pl.col('qty').cast(pl.Int64))",
+        "    .unique(subset=['order_id'], keep='last')",
+        ")",
+        "clean.sink_parquet('staging/orders/date=2026-08-21/')",
+        "# Then MERGE into warehouse on order_id",
+      ].join("\n"));
+    }
+
+    if (/(langgraph|state|node|edge|checkpoint|human)/.test(text) || q.sectionId === "langgraph") {
+      return mk("Code example (LangGraph flow)", [
+        "from typing import TypedDict",
+        "from langgraph.graph import StateGraph, START, END",
+        "",
+        "class State(TypedDict):",
+        "    question: str",
+        "    sql_rows: list",
+        "    answer: str",
+        "",
+        "graph = StateGraph(State)",
+        "graph.add_node('tool_sql', tool_sql)",
+        "graph.add_node('write_answer', write_answer)",
+        "graph.add_edge(START, 'tool_sql')",
+        "graph.add_edge('tool_sql', 'write_answer')",
+        "graph.add_edge('write_answer', END)",
+      ].join("\n"));
+    }
+
+    if (/(rag|embedding|vector|retrieve|chunk|rerank|hybrid)/.test(text) || q.sectionId === "rag") {
+      return mk("Code example (RAG retrieval)", [
+        "query = 'What is the return policy for damaged goods?'",
+        "hits = vector_index.search(query, k=8, filter={'doc_type': 'policy'})",
+        "top_chunks = reranker.rank(query, hits)[:3]",
+        "",
+        "prompt = {",
+        "  'question': query,",
+        "  'context': [c.text for c in top_chunks],",
+        "  'instruction': 'Answer only from context and cite section ids.'",
+        "}",
+        "answer = llm.generate(prompt)",
+      ].join("\n"));
+    }
+
+    if (/(agent|tool|function calling|react|prompt injection|hallucination)/.test(text) || q.sectionId === "agents") {
+      return mk("Code example (tool-calling guard)", [
+        "ALLOWED_TOOLS = {'get_stock', 'search_policy'}",
+        "",
+        "def run_tool_call(name, args):",
+        "    if name not in ALLOWED_TOOLS:",
+        "        raise ValueError('Tool not allowed')",
+        "    result = TOOLS[name](**args)",
+        "    return {'tool': name, 'result': result}",
+        "",
+        "# Validate final numeric claims against tool result before respond",
+      ].join("\n"));
+    }
+
+    if (/(solid|dependency|factory|strategy|adapter|repository|class)/.test(text) || q.sectionId === "oop") {
+      return mk("Code example (clean interface design)", [
+        "from typing import Protocol",
+        "",
+        "class ModelClient(Protocol):",
+        "    def chat(self, messages: list[dict]) -> dict: ...",
+        "",
+        "class StockAssistant:",
+        "    def __init__(self, model: ModelClient, repo):",
+        "        self.model = model",
+        "        self.repo = repo",
+      ].join("\n"));
+    }
+
+    if (/(process|port|journalctl|cron|linux|service|log)/.test(text) || q.sectionId === "linux") {
+      return mk("Code example (Linux troubleshooting commands)", [
+        "ss -lptn | rg 8000",
+        "ps aux | rg gunicorn",
+        "journalctl -u app-service -n 120 --no-pager",
+        "free -h",
+        "df -h",
+      ].join("\n"));
+    }
+
+    if (/(deploy|monitor|metrics|latency|token|cache|concurrent|scale|production)/.test(text) || q.sectionId === "production") {
+      return mk("Code example (production instrumentation)", [
+        "start = time.time()",
+        "result = llm_client.chat(messages, timeout=8)",
+        "duration_ms = int((time.time() - start) * 1000)",
+        "",
+        "metrics.count('llm.tokens', result['usage']['total_tokens'])",
+        "metrics.timing('llm.latency_ms', duration_ms)",
+        "logger.info('llm_call', extra={'trace_id': trace_id, 'latency_ms': duration_ms})",
+      ].join("\n"));
+    }
+
+    if (q.sectionId === "markets") {
+      return mk("Code example (simple reconciliation check)", [
+        "SELECT w.order_id, w.qty AS web_qty, h.qty AS wh_qty",
+        "FROM web_orders w",
+        "LEFT JOIN warehouse_orders h ON w.order_id = h.order_id",
+        "WHERE h.order_id IS NULL OR w.qty <> h.qty;",
+      ].join("\n"));
+    }
+
+    if (q.sectionId === "python") {
+      if (/(generator|yield|large file|stream|chunk)/.test(text)) {
+        return mk("Code example (Python generator for large files)", [
+          "def iter_orders(path):",
+          "    with open(path, 'r', encoding='utf-8') as f:",
+          "        next(f)  # skip header",
+          "        for line in f:",
+          "            order_id, item, qty, price = line.strip().split(',')",
+          "            yield {",
+          "                'order_id': order_id,",
+          "                'item': item,",
+          "                'qty': int(qty),",
+          "                'price': float(price),",
+          "            }",
+        ].join("\n"));
+      }
+      if (/(decorator|retry)/.test(text)) {
+        return mk("Code example (retry decorator)", [
+          "import time",
+          "",
+          "def retry(times=2, delay=0.5):",
+          "    def wrap(fn):",
+          "        def inner(*args, **kwargs):",
+          "            last = None",
+          "            for _ in range(times + 1):",
+          "                try:",
+          "                    return fn(*args, **kwargs)",
+          "                except TimeoutError as e:",
+          "                    last = e",
+          "                    time.sleep(delay)",
+          "            raise last",
+          "        return inner",
+          "    return wrap",
+        ].join("\n"));
+      }
+      if (/(thread|process|gil|async)/.test(text)) {
+        return mk("Code example (thread pool for I/O calls)", [
+          "from concurrent.futures import ThreadPoolExecutor",
+          "",
+          "def fetch_one(order_id):",
+          "    return call_remote_api(order_id)",
+          "",
+          "with ThreadPoolExecutor(max_workers=8) as ex:",
+          "    results = list(ex.map(fetch_one, order_ids))",
+        ].join("\n"));
+      }
+      if (/(protocol|interface|dependency|inject|solid|class)/.test(text)) {
+        return mk("Code example (dependency injection with Protocol)", [
+          "from typing import Protocol",
+          "",
+          "class ModelClient(Protocol):",
+          "    def chat(self, messages: list[dict]) -> dict: ...",
+          "",
+          "class AssistantService:",
+          "    def __init__(self, model: ModelClient):",
+          "        self.model = model",
+        ].join("\n"));
+      }
+      return null;
+    }
+
+    if (q.sectionId === "llm") {
+      if (/(structured|json|schema|output|function calling|tool)/.test(text)) {
+        return mk("Code example (structured LLM output)", [
+          "schema = {",
+          "  'type': 'object',",
+          "  'properties': {",
+          "    'answer': {'type': 'string'},",
+          "    'confidence': {'type': 'number'}",
+          "  },",
+          "  'required': ['answer', 'confidence']",
+          "}",
+          "result = llm.generate(prompt=prompt, response_schema=schema)",
+        ].join("\n"));
+      }
+      if (/(temperature|top-p|top-k|sampling)/.test(text)) {
+        return mk("Code example (LLM settings for factual answers)", [
+          "result = llm.generate(",
+          "    prompt=prompt,",
+          "    temperature=0.1,",
+          "    top_p=0.9,",
+          "    max_tokens=400,",
+          ")",
+        ].join("\n"));
+      }
+      if (/(hallucination|ground|citation|verify)/.test(text)) {
+        return mk("Code example (grounded answer validation)", [
+          "draft = llm.generate(prompt_with_context)",
+          "facts = {row['qty'] for row in sql_rows}",
+          "numbers = extract_numbers(draft)",
+          "if any(n not in facts for n in numbers):",
+          "    raise ValueError('Ungrounded answer')",
+          "return draft",
+        ].join("\n"));
+      }
+      return mk("Code example (prompt with explicit constraints)", [
+        "prompt = '''",
+        "You are an assistant for interview prep.",
+        "Use only facts from CONTEXT.",
+        "If data is missing, say 'I do not know'.",
+        "Return 4 bullet points in simple English.",
+        "'''",
+        "answer = llm.generate(prompt + context_text)",
+      ].join("\n"));
+    }
+
+    return null;
   }
 
   var CHART_COLORS = ["#1f6f5b", "#c47b2b", "#4a6fa5", "#9b3d2a", "#6b5b95", "#5a7a3a", "#8a5a3a"];
@@ -317,6 +696,7 @@
     var user = getUser();
     user.lastView = view;
     user.lastTopicScope = topicScope;
+    user.lastNavTopic = navTopic;
     if (data.questions[index]) user.lastQuestionId = data.questions[index].id;
     saveUser(user);
     var hash = "#home";
@@ -434,10 +814,11 @@
     var qs = topicQuestions(scope);
     if (!qs.length) return;
     topicScope = scope;
+    if (scope && scope !== "priority") navTopic = scope;
     view = "topic";
-    if (scope !== "priority") openGroups[scope] = true;
     if (scope === "priority") {
       filter = "priority";
+      navTopic = "all";
       syncChips();
     }
     renderNav();
@@ -462,27 +843,22 @@
     html += "<h2>" + escapeHtml(q.title) + "</h2>";
     html += "</div>";
 
-    var answer = q.answer && q.answer.length ? q.answer : (q.simpleAnswer || []);
-    if (q.oneLiner && answer.indexOf(q.oneLiner) === -1) {
-      answer = [q.oneLiner].concat(answer);
+    var blocks = buildAnswerBlocks(q);
+    html += '<section class="section"><h3>Explanation</h3>' + points(blocks.explanation) + "</section>";
+    html += '<section class="section"><h3>Interview-ready answer</h3>' + points(blocks.interview) + "</section>";
+
+    var codeExample = buildCodeExample(q);
+    if (codeExample) {
+      html += '<section class="section"><h3>' + escapeHtml(codeExample.title) + '</h3>';
+      html += "<pre>" + escapeHtml(codeExample.code) + "</pre>";
+      html += "</section>";
     }
-    html += '<section class="section"><h3>Answer</h3>' + paras(answer) + "</section>";
 
     (tablesForQuestion(q) || []).forEach(function (t) {
       html += '<section class="section">' + renderTable(t) + "</section>";
     });
 
-    var chart = chartForQuestion(q);
-    if (chart) {
-      html += '<section class="section"><h3>Chart</h3>' + renderChart(chart) + "</section>";
-    }
-
-    var diagram = diagramForQuestion(q);
-    if (diagram) {
-      html += '<section class="section"><h3>Flow</h3>' + renderDiagram(diagram) + "</section>";
-    }
-
-    if (q.example && (q.example.story || q.example.walkthrough || q.example.code || q.example.agentOutput || (q.example.tables && q.example.tables.length))) {
+    if (q.example && (q.example.story || q.example.walkthrough || q.example.agentOutput || (q.example.tables && q.example.tables.length))) {
       html += '<section class="section"><h3>' + escapeHtml(q.example.title || "Example") + "</h3>";
       if (q.example.story) html += "<p>" + escapeHtml(q.example.story) + "</p>";
       (q.example.tables || []).forEach(function (t) { html += renderTable(t); });
@@ -496,10 +872,6 @@
       if (q.example.agentOutput) {
         html += "<h3 style='margin-top:18px'>" + escapeHtml(q.example.agentOutput.title) + "</h3>";
         html += '<pre class="json-box">' + escapeHtml(JSON.stringify(q.example.agentOutput.jsonExample, null, 2)) + "</pre>";
-      }
-      if (q.example.code) {
-        html += "<h3 style='margin-top:18px'>" + escapeHtml(q.example.codeTitle || "Example code") + "</h3>";
-        html += "<pre>" + escapeHtml(q.example.code) + "</pre>";
       }
       html += "</section>";
     }
@@ -530,33 +902,67 @@
     });
   }
 
+  function renderTopicTabs(questionPool) {
+    var counts = {};
+    (data.sections || []).forEach(function (sec) {
+      counts[sec.id] = 0;
+    });
+    questionPool.forEach(function (q) {
+      counts[q.sectionId] = (counts[q.sectionId] || 0) + 1;
+    });
+    var html = "";
+    html += '<button type="button" class="topic-tab' + (navTopic === "all" ? " active" : "") + '" data-topic="all" role="tab" aria-selected="' + (navTopic === "all" ? "true" : "false") + '">All <span>' + questionPool.length + "</span></button>";
+    (data.sections || []).forEach(function (sec) {
+      var n = counts[sec.id] || 0;
+      if (!n && (search || filter !== "all")) return;
+      var active = navTopic === sec.id;
+      html += '<button type="button" class="topic-tab' + (active ? " active" : "") + '" data-topic="' + escapeHtml(sec.id) + '" role="tab" aria-selected="' + (active ? "true" : "false") + '">';
+      html += escapeHtml(sec.name) + " <span>" + n + "</span></button>";
+    });
+    $("topicTabs").innerHTML = html;
+
+    Array.prototype.forEach.call($("topicTabs").querySelectorAll("[data-topic]"), function (btn) {
+      btn.addEventListener("click", function () {
+        navTopic = btn.getAttribute("data-topic") || "all";
+        if (view === "topic" && navTopic !== "all") {
+          topicScope = navTopic;
+          renderTopicList();
+          updateChrome();
+        } else if (view === "topic" && navTopic === "all") {
+          showLibrary();
+          return;
+        }
+        renderNav();
+        persistSession();
+      });
+    });
+  }
+
   function renderNav() {
     var user = getUser();
+    var questionPool = filteredQuestions();
+    var availableForTopic = navTopic === "all" ? questionPool : questionPool.filter(function (q) {
+      return q.sectionId === navTopic;
+    });
+    if (navTopic !== "all" && !availableForTopic.length) navTopic = "all";
+    renderTopicTabs(questionPool);
+
     var html = "";
     var any = false;
     (data.sections || []).forEach(function (sec) {
-      var qs = data.questions.filter(function (q) {
-        return q.sectionId === sec.id && matchesSearch(q) && matchesFilter(q, user);
-      });
-      if (filter !== "all" && qs.length === 0 && !search) {
-        if (filter === "priority") return;
-      }
+      var qs = questionPool.filter(function (q) { return q.sectionId === sec.id; });
+      if (navTopic !== "all" && sec.id !== navTopic) return;
       var allInSection = data.questions.filter(function (q) { return q.sectionId === sec.id; });
       var current = (view === "topic" && topicScope === sec.id) || (view === "question" && data.questions[index] && data.questions[index].sectionId === sec.id);
-      var isOpen;
-      if (search && qs.length > 0) isOpen = true;
-      else if (Object.prototype.hasOwnProperty.call(openGroups, sec.id)) isOpen = !!openGroups[sec.id];
-      else isOpen = current;
       if (qs.length === 0 && allInSection.length === 0 && (search || filter === "todo" || filter === "done" || filter === "priority")) {
         return;
       }
       any = true;
-      html += '<div class="nav-group' + (isOpen ? " open" : "") + (current ? " current" : "") + (allInSection.length === 0 ? " empty" : "") + '" data-section="' + escapeHtml(sec.id) + '">';
-      html += '<button type="button" class="nav-group-head" data-toggle="' + escapeHtml(sec.id) + '" aria-expanded="' + (isOpen ? "true" : "false") + '">';
-      html += '<span class="nav-toggle" aria-hidden="true">▸</span>';
-      html += '<span class="nav-group-name">' + escapeHtml(sec.name) + "</span>";
+      html += '<section class="nav-block' + (current ? " current" : "") + (allInSection.length === 0 ? " empty" : "") + '" data-section="' + escapeHtml(sec.id) + '">';
+      html += '<button type="button" class="nav-block-head" data-topic="' + escapeHtml(sec.id) + '">';
+      html += '<span class="nav-block-name">' + escapeHtml(sec.name) + "</span>";
       html += '<span class="nav-count">' + qs.length + "</span>";
-      html += "</button><div class='nav-group-body'>";
+      html += "</button><div class='nav-list'>";
       if (allInSection.length === 0) {
         html += '<p class="coming">Coming next.</p>';
       } else if (qs.length === 0) {
@@ -572,21 +978,24 @@
           html += "</button>";
         });
       }
-      html += "</div></div>";
+      html += "</div></section>";
     });
     if (!any) html = '<p class="nav-empty">No questions match. Clear search or pick All.</p>';
     $("nav").innerHTML = html;
 
-    Array.prototype.forEach.call($("nav").querySelectorAll("[data-toggle]"), function (btn) {
+    Array.prototype.forEach.call($("nav").querySelectorAll("[data-topic]"), function (btn) {
       btn.addEventListener("click", function (e) {
         e.preventDefault();
-        e.stopPropagation();
-        var id = btn.getAttribute("data-toggle");
-        var group = btn.closest(".nav-group");
-        var open = !group.classList.contains("open");
-        openGroups[id] = open;
-        group.classList.toggle("open", open);
-        btn.setAttribute("aria-expanded", open ? "true" : "false");
+        var id = btn.getAttribute("data-topic");
+        if (!id) return;
+        navTopic = id;
+        if (view === "topic") {
+          topicScope = id;
+          renderTopicList();
+          updateChrome();
+        }
+        renderNav();
+        persistSession();
       });
     });
     Array.prototype.forEach.call($("nav").querySelectorAll("[data-i]"), function (btn) {
@@ -678,8 +1087,8 @@
     if (i < 0 || i >= data.questions.length) return;
     index = i;
     view = "question";
-    if (data.questions[i].sectionId) openGroups[data.questions[i].sectionId] = true;
-    if (!topicScope) topicScope = data.questions[i].sectionId;
+    if (navTopic !== "all") topicScope = navTopic;
+    else topicScope = null;
     renderNav();
     renderQuestion(data.questions[index]);
     updateChrome();
@@ -689,6 +1098,9 @@
   }
 
   function navList() {
+    if (navTopic !== "all") {
+      return filteredQuestions().filter(function (q) { return q.sectionId === navTopic; });
+    }
     if (topicScope) return topicQuestions(topicScope);
     if (search || filter !== "all") return filteredQuestions();
     return data.questions;
@@ -715,7 +1127,7 @@
   }
 
   function syncChips() {
-    Array.prototype.forEach.call(document.querySelectorAll(".chip"), function (chip) {
+    Array.prototype.forEach.call(document.querySelectorAll(".chip[data-filter]"), function (chip) {
       chip.classList.toggle("active", chip.getAttribute("data-filter") === filter);
     });
   }
@@ -761,6 +1173,7 @@
     $("packLabel").textContent = packText;
 
     var user = getUser();
+    navTopic = user.lastNavTopic || "all";
     var hash = (location.hash || "").replace("#", "");
     if (hash.indexOf("list-") === 0) {
       showTopicList(hash.slice(5));
@@ -789,6 +1202,39 @@
     $("btnLibrary").addEventListener("click", showLibrary);
     $("btnHomeDock").addEventListener("click", showLibrary);
 
+    var moreRoot = document.querySelector(".more");
+    var moreBtn = $("btnMore");
+    var moreMenu = $("moreMenu");
+    function closeMoreMenu() {
+      if (!moreBtn || !moreMenu) return;
+      moreMenu.hidden = true;
+      moreBtn.setAttribute("aria-expanded", "false");
+      if (moreRoot) moreRoot.classList.remove("open");
+    }
+    function openMoreMenu() {
+      if (!moreBtn || !moreMenu) return;
+      moreMenu.hidden = false;
+      moreBtn.setAttribute("aria-expanded", "true");
+      if (moreRoot) moreRoot.classList.add("open");
+    }
+    if (moreBtn && moreMenu && moreRoot) {
+      moreBtn.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (moreMenu.hidden) openMoreMenu();
+        else closeMoreMenu();
+      });
+      moreMenu.addEventListener("click", function (e) {
+        e.stopPropagation();
+      });
+      document.addEventListener("click", function (e) {
+        if (!moreRoot.contains(e.target)) closeMoreMenu();
+      });
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") closeMoreMenu();
+      });
+    }
+
     function syncSearchClear() {
       $("btnClearSearch").hidden = !search;
     }
@@ -804,14 +1250,13 @@
       $("search").focus();
       renderNav();
     });
-    Array.prototype.forEach.call(document.querySelectorAll(".chip"), function (chip) {
+    Array.prototype.forEach.call(document.querySelectorAll(".chip[data-filter]"), function (chip) {
       chip.addEventListener("click", function () {
         filter = chip.getAttribute("data-filter");
         syncChips();
         renderNav();
       });
     });
-
     $("btnPrevDock").addEventListener("click", function () {
       if (view === "library") return;
       go(-1);
@@ -826,37 +1271,57 @@
     }
 
     var deferredPrompt = null;
+    var isAndroid = isAndroidDevice();
     function showInstall(show) {
       $("btnInstall").hidden = !show;
       $("btnInstallSidebar").hidden = !show;
     }
-    var standalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
-    if (/iphone|ipad|ipod/i.test(navigator.userAgent) && !standalone) {
+    function showAndroidHint(show) {
+      var hint = $("androidHint");
+      if (hint) hint.hidden = !show;
+    }
+    function refreshInstallUI() {
+      var standalone = isStandaloneMode();
+      var canPrompt = !!deferredPrompt;
+      var showButtons = !standalone && (canPrompt || isAndroid);
+      showInstall(showButtons);
+      showAndroidHint(!standalone && isAndroid && !canPrompt);
+    }
+    if (/iphone|ipad|ipod/i.test(navigator.userAgent) && !isStandaloneMode()) {
       $("iosHint").hidden = false;
     }
+    refreshInstallUI();
     window.addEventListener("beforeinstallprompt", function (e) {
       e.preventDefault();
       deferredPrompt = e;
-      if (!standalone) showInstall(true);
+      refreshInstallUI();
     });
     window.addEventListener("appinstalled", function () {
       deferredPrompt = null;
-      showInstall(false);
+      refreshInstallUI();
     });
     function installApp() {
-      if (!deferredPrompt) return;
-      deferredPrompt.prompt();
-      deferredPrompt.userChoice.finally(function () {
-        deferredPrompt = null;
-        showInstall(false);
-      });
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.finally(function () {
+          deferredPrompt = null;
+          refreshInstallUI();
+        });
+        return;
+      }
+      if (isAndroid && !isStandaloneMode()) {
+        showAndroidHint(true);
+        alert("To install on Android: open browser menu (⋮) and tap Install app or Add to Home screen.");
+      }
     }
     $("btnInstall").addEventListener("click", installApp);
     $("btnInstallSidebar").addEventListener("click", installApp);
     $("btnExportOfficial").addEventListener("click", function () {
+      closeMoreMenu();
       download("interview-questions.json", JSON.stringify(data, null, 2));
     });
     $("btnExportUser").addEventListener("click", function () {
+      closeMoreMenu();
       var payload = {
         savedAt: new Date().toISOString(),
         source: "Interview library — user notes",
@@ -865,6 +1330,7 @@
       download("my-interview-notes.json", JSON.stringify(payload, null, 2));
     });
     $("importUser").addEventListener("change", function (e) {
+      closeMoreMenu();
       var file = e.target.files && e.target.files[0];
       if (!file) return;
       var reader = new FileReader();
