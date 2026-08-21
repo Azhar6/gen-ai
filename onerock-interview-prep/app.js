@@ -5,7 +5,7 @@
   let view = "library";
   let filter = "all";
   let search = "";
-  let openGroups = {};
+  let navTopic = "all";
   let topicScope = null;
 
   function $(id) { return document.getElementById(id); }
@@ -696,6 +696,7 @@
     var user = getUser();
     user.lastView = view;
     user.lastTopicScope = topicScope;
+    user.lastNavTopic = navTopic;
     if (data.questions[index]) user.lastQuestionId = data.questions[index].id;
     saveUser(user);
     var hash = "#home";
@@ -813,10 +814,11 @@
     var qs = topicQuestions(scope);
     if (!qs.length) return;
     topicScope = scope;
+    if (scope && scope !== "priority") navTopic = scope;
     view = "topic";
-    if (scope !== "priority") openGroups[scope] = true;
     if (scope === "priority") {
       filter = "priority";
+      navTopic = "all";
       syncChips();
     }
     renderNav();
@@ -900,33 +902,67 @@
     });
   }
 
+  function renderTopicTabs(questionPool) {
+    var counts = {};
+    (data.sections || []).forEach(function (sec) {
+      counts[sec.id] = 0;
+    });
+    questionPool.forEach(function (q) {
+      counts[q.sectionId] = (counts[q.sectionId] || 0) + 1;
+    });
+    var html = "";
+    html += '<button type="button" class="topic-tab' + (navTopic === "all" ? " active" : "") + '" data-topic="all" role="tab" aria-selected="' + (navTopic === "all" ? "true" : "false") + '">All <span>' + questionPool.length + "</span></button>";
+    (data.sections || []).forEach(function (sec) {
+      var n = counts[sec.id] || 0;
+      if (!n && (search || filter !== "all")) return;
+      var active = navTopic === sec.id;
+      html += '<button type="button" class="topic-tab' + (active ? " active" : "") + '" data-topic="' + escapeHtml(sec.id) + '" role="tab" aria-selected="' + (active ? "true" : "false") + '">';
+      html += escapeHtml(sec.name) + " <span>" + n + "</span></button>";
+    });
+    $("topicTabs").innerHTML = html;
+
+    Array.prototype.forEach.call($("topicTabs").querySelectorAll("[data-topic]"), function (btn) {
+      btn.addEventListener("click", function () {
+        navTopic = btn.getAttribute("data-topic") || "all";
+        if (view === "topic" && navTopic !== "all") {
+          topicScope = navTopic;
+          renderTopicList();
+          updateChrome();
+        } else if (view === "topic" && navTopic === "all") {
+          showLibrary();
+          return;
+        }
+        renderNav();
+        persistSession();
+      });
+    });
+  }
+
   function renderNav() {
     var user = getUser();
+    var questionPool = filteredQuestions();
+    var availableForTopic = navTopic === "all" ? questionPool : questionPool.filter(function (q) {
+      return q.sectionId === navTopic;
+    });
+    if (navTopic !== "all" && !availableForTopic.length) navTopic = "all";
+    renderTopicTabs(questionPool);
+
     var html = "";
     var any = false;
     (data.sections || []).forEach(function (sec) {
-      var qs = data.questions.filter(function (q) {
-        return q.sectionId === sec.id && matchesSearch(q) && matchesFilter(q, user);
-      });
-      if (filter !== "all" && qs.length === 0 && !search) {
-        if (filter === "priority") return;
-      }
+      var qs = questionPool.filter(function (q) { return q.sectionId === sec.id; });
+      if (navTopic !== "all" && sec.id !== navTopic) return;
       var allInSection = data.questions.filter(function (q) { return q.sectionId === sec.id; });
       var current = (view === "topic" && topicScope === sec.id) || (view === "question" && data.questions[index] && data.questions[index].sectionId === sec.id);
-      var isOpen;
-      if (search && qs.length > 0) isOpen = true;
-      else if (Object.prototype.hasOwnProperty.call(openGroups, sec.id)) isOpen = !!openGroups[sec.id];
-      else isOpen = current;
       if (qs.length === 0 && allInSection.length === 0 && (search || filter === "todo" || filter === "done" || filter === "priority")) {
         return;
       }
       any = true;
-      html += '<details class="nav-group' + (current ? " current" : "") + (allInSection.length === 0 ? " empty" : "") + '" data-section="' + escapeHtml(sec.id) + '"' + (isOpen ? " open" : "") + ">";
-      html += '<summary class="nav-group-head" aria-expanded="' + (isOpen ? "true" : "false") + '">';
-      html += '<span class="nav-toggle" aria-hidden="true">▸</span>';
-      html += '<span class="nav-group-name">' + escapeHtml(sec.name) + "</span>";
+      html += '<section class="nav-block' + (current ? " current" : "") + (allInSection.length === 0 ? " empty" : "") + '" data-section="' + escapeHtml(sec.id) + '">';
+      html += '<button type="button" class="nav-block-head" data-topic="' + escapeHtml(sec.id) + '">';
+      html += '<span class="nav-block-name">' + escapeHtml(sec.name) + "</span>";
       html += '<span class="nav-count">' + qs.length + "</span>";
-      html += "</summary><div class='nav-group-body'>";
+      html += "</button><div class='nav-list'>";
       if (allInSection.length === 0) {
         html += '<p class="coming">Coming next.</p>';
       } else if (qs.length === 0) {
@@ -942,17 +978,24 @@
           html += "</button>";
         });
       }
-      html += "</div></details>";
+      html += "</div></section>";
     });
     if (!any) html = '<p class="nav-empty">No questions match. Clear search or pick All.</p>';
     $("nav").innerHTML = html;
 
-    Array.prototype.forEach.call($("nav").querySelectorAll(".nav-group"), function (group) {
-      group.addEventListener("toggle", function () {
-        var id = group.getAttribute("data-section");
-        openGroups[id] = group.open;
-        var summary = group.querySelector(".nav-group-head");
-        if (summary) summary.setAttribute("aria-expanded", group.open ? "true" : "false");
+    Array.prototype.forEach.call($("nav").querySelectorAll("[data-topic]"), function (btn) {
+      btn.addEventListener("click", function (e) {
+        e.preventDefault();
+        var id = btn.getAttribute("data-topic");
+        if (!id) return;
+        navTopic = id;
+        if (view === "topic") {
+          topicScope = id;
+          renderTopicList();
+          updateChrome();
+        }
+        renderNav();
+        persistSession();
       });
     });
     Array.prototype.forEach.call($("nav").querySelectorAll("[data-i]"), function (btn) {
@@ -1044,8 +1087,8 @@
     if (i < 0 || i >= data.questions.length) return;
     index = i;
     view = "question";
-    if (data.questions[i].sectionId) openGroups[data.questions[i].sectionId] = true;
-    if (!topicScope) topicScope = data.questions[i].sectionId;
+    if (navTopic !== "all") topicScope = navTopic;
+    else topicScope = null;
     renderNav();
     renderQuestion(data.questions[index]);
     updateChrome();
@@ -1055,6 +1098,9 @@
   }
 
   function navList() {
+    if (navTopic !== "all") {
+      return filteredQuestions().filter(function (q) { return q.sectionId === navTopic; });
+    }
     if (topicScope) return topicQuestions(topicScope);
     if (search || filter !== "all") return filteredQuestions();
     return data.questions;
@@ -1084,13 +1130,6 @@
     Array.prototype.forEach.call(document.querySelectorAll(".chip[data-filter]"), function (chip) {
       chip.classList.toggle("active", chip.getAttribute("data-filter") === filter);
     });
-  }
-
-  function setAllNavGroups(open) {
-    (data.sections || []).forEach(function (sec) {
-      openGroups[sec.id] = open;
-    });
-    renderNav();
   }
 
   function download(filename, text) {
@@ -1134,6 +1173,7 @@
     $("packLabel").textContent = packText;
 
     var user = getUser();
+    navTopic = user.lastNavTopic || "all";
     var hash = (location.hash || "").replace("#", "");
     if (hash.indexOf("list-") === 0) {
       showTopicList(hash.slice(5));
@@ -1217,19 +1257,6 @@
         renderNav();
       });
     });
-    var btnExpandAll = $("btnExpandAll");
-    if (btnExpandAll) {
-      btnExpandAll.addEventListener("click", function () {
-        setAllNavGroups(true);
-      });
-    }
-    var btnCollapseAll = $("btnCollapseAll");
-    if (btnCollapseAll) {
-      btnCollapseAll.addEventListener("click", function () {
-        setAllNavGroups(false);
-      });
-    }
-
     $("btnPrevDock").addEventListener("click", function () {
       if (view === "library") return;
       go(-1);

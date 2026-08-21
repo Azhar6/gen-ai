@@ -341,14 +341,6 @@ button, .btn, .nav button, .dock-btn, .icon-btn {
   border-color: #2b7f69;
   color: #fffaf1;
 }
-.chip.action-chip {
-  background: #24332d;
-  border-color: #3a4f47;
-  color: #d6cebf;
-}
-.chip.action-chip:hover {
-  background: #30423b;
-}
 .progress-block { display: grid; gap: 5px; }
 .side-progress {
   height: 6px;
@@ -364,16 +356,42 @@ button, .btn, .nav button, .dock-btn, .icon-btn {
   border-radius: 99px;
 }
 .progress-line { margin: 0; color: #c3b89f; font-size: 11px; }
-.nav-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+.topic-tabs {
+  display: flex;
   gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
 }
+.topic-tab {
+  flex: 0 0 auto;
+  border: 1px solid #40544c;
+  background: #202b27;
+  color: #d8d0c2;
+  border-radius: 999px;
+  min-height: 30px;
+  padding: 4px 10px;
+  font: 600 12px var(--sans);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.topic-tab span {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: #c7b084;
+  margin-left: 4px;
+}
+.topic-tab.active {
+  background: #2b7f69;
+  border-color: #2b7f69;
+  color: #fffaf1;
+}
+.topic-tab.active span { color: #e6d2a8; }
 
 .nav {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  display: grid;
+  gap: 6px;
+  align-content: start;
   flex: 1;
   overflow: auto;
   min-height: 0;
@@ -387,56 +405,39 @@ button, .btn, .nav button, .dock-btn, .icon-btn {
   background: #3d5a50;
   border-radius: 8px;
 }
-.nav-group {
-  border: 1px solid #31463e;
+
+.nav-block {
+  border: 1px solid #30443c;
   border-radius: 12px;
-  background: #1b2420;
+  background: rgba(25, 35, 31, 0.88);
   overflow: hidden;
 }
-.nav-group[open] {
-  border-color: #46695d;
-  background: #1f2b26;
-}
-.nav-group.current {
+.nav-block.current {
   border-color: #5a8d7c;
   box-shadow: 0 0 0 1px rgba(90, 141, 124, 0.2) inset;
 }
-.nav-group-head {
-  list-style: none;
-  display: grid;
-  grid-template-columns: 26px 1fr auto;
+
+.nav-block-head {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  min-height: 44px;
-  background: rgba(36, 51, 46, 0.52);
+  gap: 10px;
+  padding: 9px 11px;
+  min-height: 40px;
+  border: 0;
+  background: rgba(37, 53, 47, 0.66);
   color: #efe7d8;
   cursor: pointer;
-  font: 700 13.5px var(--sans);
+  font: 700 13px var(--sans);
   text-align: left;
 }
-.nav-group-head::-webkit-details-marker { display: none; }
-.nav-group-head::marker { content: ""; }
-.nav-group-head:hover { background: rgba(48, 66, 59, 0.72); }
-.nav-group-head:focus-visible {
+.nav-block-head:hover { background: rgba(54, 74, 66, 0.85); }
+.nav-block-head:focus-visible {
   outline: 2px solid #89b8a8;
-  outline-offset: -2px;
+  outline-offset: -1px;
 }
-.nav-toggle {
-  width: 22px;
-  height: 22px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #dbc79f;
-  font-size: 12px;
-  line-height: 1;
-  border-radius: 7px;
-  background: rgba(255, 255, 255, 0.05);
-  transition: transform 0.18s ease;
-}
-.nav-group[open] .nav-toggle { transform: rotate(90deg); }
-.nav-group-name {
+.nav-block-name {
   min-width: 0;
   line-height: 1.25;
 }
@@ -449,9 +450,9 @@ button, .btn, .nav button, .dock-btn, .icon-btn {
   border-radius: 99px;
   background: rgba(196, 123, 43, 0.15);
 }
-.nav-group.current .nav-group-name { color: #fff; }
-.nav-group.empty .nav-group-head { color: #9b9588; font-weight: 600; }
-.nav-group-body {
+.nav-block.current .nav-block-name { color: #fff; }
+.nav-block.empty .nav-block-head { color: #9b9588; font-weight: 600; }
+.nav-list {
   padding: 6px 8px 8px;
 }
 .nav button.q-btn {
@@ -513,11 +514,7 @@ button, .btn, .nav button, .dock-btn, .icon-btn {
   color: #a99f8b;
   padding: 7px 10px 9px;
 }
-
-.nav-group-name,
-.q-btn-text {
-  overflow: hidden;
-}
+.q-btn-text { overflow: hidden; }
 
 .sr-only {
   position: absolute;
@@ -1112,10 +1109,9 @@ pre {
   .sidebar-top {
     padding-top: calc(12px + env(safe-area-inset-top));
   }
-  .nav {
-    padding: 10px 10px 14px;
-  }
-  .nav-actions { grid-template-columns: 1fr; }
+  .nav { padding: 10px 10px 14px; }
+  .topic-tabs { gap: 5px; }
+  .topic-tab { min-height: 30px; padding: 4px 9px; }
   .sidebar.open { transform: translateX(0); }
   body.menu-open .hamburger { background: transparent; }
   body.menu-open .hamburger:before {
