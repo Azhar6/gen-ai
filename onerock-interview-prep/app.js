@@ -152,6 +152,175 @@
     return { explanation: explanation, interview: interview };
   }
 
+  function buildCodeExample(q) {
+    var existing = q.example && q.example.code ? String(q.example.code).trim() : "";
+    if (existing) {
+      return { title: q.example.codeTitle || "Code example", code: existing };
+    }
+
+    var text = ((q.title || "") + " " + (q.category || "") + " " + (q.oneLiner || "")).toLowerCase();
+    function mk(title, code) { return { title: title, code: code }; }
+
+    if (/(join|lag|lead|group by|cte|window|duplicate|query|sql)/.test(text) || q.sectionId === "sql") {
+      return mk("Code example (SQL)", [
+        "WITH web AS (",
+        "  SELECT order_id, item, qty, price FROM web_orders",
+        "), wh AS (",
+        "  SELECT order_id, item, qty, price FROM warehouse_orders",
+        ")",
+        "SELECT",
+        "  COALESCE(w.order_id, h.order_id) AS order_id,",
+        "  CASE",
+        "    WHEN w.order_id IS NULL THEN 'missing_in_web'",
+        "    WHEN h.order_id IS NULL THEN 'missing_in_wh'",
+        "    WHEN w.qty <> h.qty THEN 'qty_mismatch'",
+        "    WHEN w.price <> h.price THEN 'price_mismatch'",
+        "    ELSE 'matched'",
+        "  END AS status",
+        "FROM web w",
+        "FULL OUTER JOIN wh h ON w.order_id = h.order_id;",
+      ].join("\n"));
+    }
+
+    if (/(retry|backoff|timeout)/.test(text)) {
+      return mk("Code example (Python retry)", [
+        "import time, random",
+        "",
+        "def call_with_retry(fn, retries=2):",
+        "    delay = 0.5",
+        "    for attempt in range(retries + 1):",
+        "        try:",
+        "            return fn()",
+        "        except TimeoutError:",
+        "            if attempt == retries:",
+        "                raise",
+        "            time.sleep(delay + random.uniform(0, 0.2))",
+        "            delay *= 2",
+      ].join("\n"));
+    }
+
+    if (/(etl|pipeline|csv|chunk|idempotent|incremental|schema)/.test(text) || q.sectionId === "etl") {
+      return mk("Code example (ETL with idempotent load)", [
+        "import polars as pl",
+        "",
+        "scan = pl.scan_csv('orders_2026-08-21.csv')",
+        "clean = (",
+        "    scan",
+        "    .drop_nulls(['order_id', 'item'])",
+        "    .with_columns(pl.col('qty').cast(pl.Int64))",
+        "    .unique(subset=['order_id'], keep='last')",
+        ")",
+        "clean.sink_parquet('staging/orders/date=2026-08-21/')",
+        "# Then MERGE into warehouse on order_id",
+      ].join("\n"));
+    }
+
+    if (/(langgraph|state|node|edge|checkpoint|human)/.test(text) || q.sectionId === "langgraph") {
+      return mk("Code example (LangGraph flow)", [
+        "from typing import TypedDict",
+        "from langgraph.graph import StateGraph, START, END",
+        "",
+        "class State(TypedDict):",
+        "    question: str",
+        "    sql_rows: list",
+        "    answer: str",
+        "",
+        "graph = StateGraph(State)",
+        "graph.add_node('tool_sql', tool_sql)",
+        "graph.add_node('write_answer', write_answer)",
+        "graph.add_edge(START, 'tool_sql')",
+        "graph.add_edge('tool_sql', 'write_answer')",
+        "graph.add_edge('write_answer', END)",
+      ].join("\n"));
+    }
+
+    if (/(rag|embedding|vector|retrieve|chunk|rerank|hybrid)/.test(text) || q.sectionId === "rag") {
+      return mk("Code example (RAG retrieval)", [
+        "query = 'What is the return policy for damaged goods?'",
+        "hits = vector_index.search(query, k=8, filter={'doc_type': 'policy'})",
+        "top_chunks = reranker.rank(query, hits)[:3]",
+        "",
+        "prompt = {",
+        "  'question': query,",
+        "  'context': [c.text for c in top_chunks],",
+        "  'instruction': 'Answer only from context and cite section ids.'",
+        "}",
+        "answer = llm.generate(prompt)",
+      ].join("\n"));
+    }
+
+    if (/(agent|tool|function calling|react|prompt injection|hallucination)/.test(text) || q.sectionId === "agents") {
+      return mk("Code example (tool-calling guard)", [
+        "ALLOWED_TOOLS = {'get_stock', 'search_policy'}",
+        "",
+        "def run_tool_call(name, args):",
+        "    if name not in ALLOWED_TOOLS:",
+        "        raise ValueError('Tool not allowed')",
+        "    result = TOOLS[name](**args)",
+        "    return {'tool': name, 'result': result}",
+        "",
+        "# Validate final numeric claims against tool result before respond",
+      ].join("\n"));
+    }
+
+    if (/(solid|dependency|factory|strategy|adapter|repository|class)/.test(text) || q.sectionId === "oop") {
+      return mk("Code example (clean interface design)", [
+        "from typing import Protocol",
+        "",
+        "class ModelClient(Protocol):",
+        "    def chat(self, messages: list[dict]) -> dict: ...",
+        "",
+        "class StockAssistant:",
+        "    def __init__(self, model: ModelClient, repo):",
+        "        self.model = model",
+        "        self.repo = repo",
+      ].join("\n"));
+    }
+
+    if (/(process|port|journalctl|cron|linux|service|log)/.test(text) || q.sectionId === "linux") {
+      return mk("Code example (Linux troubleshooting commands)", [
+        "ss -lptn | rg 8000",
+        "ps aux | rg gunicorn",
+        "journalctl -u app-service -n 120 --no-pager",
+        "free -h",
+        "df -h",
+      ].join("\n"));
+    }
+
+    if (/(deploy|monitor|metrics|latency|token|cache|concurrent|scale|production)/.test(text) || q.sectionId === "production") {
+      return mk("Code example (production instrumentation)", [
+        "start = time.time()",
+        "result = llm_client.chat(messages, timeout=8)",
+        "duration_ms = int((time.time() - start) * 1000)",
+        "",
+        "metrics.count('llm.tokens', result['usage']['total_tokens'])",
+        "metrics.timing('llm.latency_ms', duration_ms)",
+        "logger.info('llm_call', extra={'trace_id': trace_id, 'latency_ms': duration_ms})",
+      ].join("\n"));
+    }
+
+    if (q.sectionId === "markets") {
+      return mk("Code example (simple reconciliation check)", [
+        "SELECT w.order_id, w.qty AS web_qty, h.qty AS wh_qty",
+        "FROM web_orders w",
+        "LEFT JOIN warehouse_orders h ON w.order_id = h.order_id",
+        "WHERE h.order_id IS NULL OR w.qty <> h.qty;",
+      ].join("\n"));
+    }
+
+    if (q.sectionId === "python" || q.sectionId === "llm") {
+      return mk("Code example (Python utility)", [
+        "def safe_int(value, default=0):",
+        "    try:",
+        "        return int(value)",
+        "    except (TypeError, ValueError):",
+        "        return default",
+      ].join("\n"));
+    }
+
+    return null;
+  }
+
   var CHART_COLORS = ["#1f6f5b", "#c47b2b", "#4a6fa5", "#9b3d2a", "#6b5b95", "#5a7a3a", "#8a5a3a"];
 
   function parseChartNumber(text) {
@@ -580,11 +749,18 @@
     html += '<section class="section"><h3>Explanation</h3>' + points(blocks.explanation) + "</section>";
     html += '<section class="section"><h3>Interview-ready answer</h3>' + points(blocks.interview) + "</section>";
 
+    var codeExample = buildCodeExample(q);
+    if (codeExample) {
+      html += '<section class="section"><h3>' + escapeHtml(codeExample.title) + '</h3>';
+      html += "<pre>" + escapeHtml(codeExample.code) + "</pre>";
+      html += "</section>";
+    }
+
     (tablesForQuestion(q) || []).forEach(function (t) {
       html += '<section class="section">' + renderTable(t) + "</section>";
     });
 
-    if (q.example && (q.example.story || q.example.walkthrough || q.example.code || q.example.agentOutput || (q.example.tables && q.example.tables.length))) {
+    if (q.example && (q.example.story || q.example.walkthrough || q.example.agentOutput || (q.example.tables && q.example.tables.length))) {
       html += '<section class="section"><h3>' + escapeHtml(q.example.title || "Example") + "</h3>";
       if (q.example.story) html += "<p>" + escapeHtml(q.example.story) + "</p>";
       (q.example.tables || []).forEach(function (t) { html += renderTable(t); });
@@ -598,10 +774,6 @@
       if (q.example.agentOutput) {
         html += "<h3 style='margin-top:18px'>" + escapeHtml(q.example.agentOutput.title) + "</h3>";
         html += '<pre class="json-box">' + escapeHtml(JSON.stringify(q.example.agentOutput.jsonExample, null, 2)) + "</pre>";
-      }
-      if (q.example.code) {
-        html += "<h3 style='margin-top:18px'>" + escapeHtml(q.example.codeTitle || "Example code") + "</h3>";
-        html += "<pre>" + escapeHtml(q.example.code) + "</pre>";
       }
       html += "</section>";
     }
