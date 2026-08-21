@@ -42,6 +42,14 @@
     }).join("");
   }
 
+  function points(list) {
+    var rows = (list || []).filter(function (p) { return String(p || "").trim().length > 0; });
+    if (!rows.length) return "";
+    return '<ul class="answer-points">' + rows.map(function (p) {
+      return "<li>" + escapeHtml(p) + "</li>";
+    }).join("") + "</ul>";
+  }
+
   function ensureSentence(text) {
     var t = String(text || "").trim();
     if (!t) return "";
@@ -523,8 +531,8 @@
     html += "</div>";
 
     var blocks = buildAnswerBlocks(q);
-    html += '<section class="section"><h3>Explanation</h3>' + paras(blocks.explanation) + "</section>";
-    html += '<section class="section"><h3>Interview-ready answer</h3>' + paras(blocks.interview) + "</section>";
+    html += '<section class="section"><h3>Explanation</h3>' + points(blocks.explanation) + "</section>";
+    html += '<section class="section"><h3>Interview-ready answer</h3>' + points(blocks.interview) + "</section>";
 
     (tablesForQuestion(q) || []).forEach(function (t) {
       html += '<section class="section">' + renderTable(t) + "</section>";
