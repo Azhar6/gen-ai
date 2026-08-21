@@ -57,6 +57,16 @@
     return t.replace(/\s+/g, " ");
   }
 
+  function sentenceClause(text) {
+    return normalizeAnswerLine(text).replace(/[.!?]+$/, "").trim();
+  }
+
+  function composeInterviewSentence(prefix, line) {
+    var clause = sentenceClause(line);
+    if (!clause) return "";
+    return ensureSentence(prefix + clause);
+  }
+
   function normalizeAnswerLine(line) {
     var t = String(line || "").trim();
     if (!t) return "";
@@ -83,25 +93,61 @@
     return out;
   }
 
+  function questionExampleLine(q) {
+    if (q.example && q.example.story) {
+      return ensureSentence("For example, " + sentenceClause(q.example.story));
+    }
+    if (q.example && q.example.walkthrough && q.example.walkthrough.length) {
+      var first = q.example.walkthrough[0] || {};
+      var parts = [first.step, first.result, first.detail].filter(Boolean).map(sentenceClause).filter(Boolean);
+      if (parts.length) return ensureSentence("For example, " + parts.join(" — "));
+    }
+    if (q.tables && q.tables.length && q.tables[0].rows && q.tables[0].rows.length) {
+      var row = q.tables[0].rows[0] || [];
+      if (row[0] && row[1]) {
+        return ensureSentence("For example, in practice we check " + sentenceClause(row[0]) + " by using " + sentenceClause(row[1]));
+      }
+    }
+    var bySection = {
+      etl: "For example, in a daily data pipeline, validate the input file first, then load with idempotent writes so reruns do not create duplicates.",
+      sql: "For example, when data does not match, run a keyed join to separate missing rows from value mismatches before taking action.",
+      agents: "For example, in a support workflow, use deterministic rules first and let the agent handle only the unresolved cases.",
+      rag: "For example, retrieve policy text first and then answer from those passages instead of relying on model memory.",
+      production: "For example, set timeouts, retries, and monitoring before exposing the feature to real users.",
+      python: "For example, use a generator to process a large file line by line instead of loading everything into memory.",
+      llm: "For example, verify every important number against tool output before showing it to the user.",
+      langgraph: "For example, route the request through tools, validate output, and only then generate the final response."
+    };
+    return bySection[q.sectionId] || "";
+  }
+
   function buildAnswerBlocks(q) {
     var raw = q.answer && q.answer.length ? q.answer : (q.simpleAnswer || []);
     var lines = uniqLines(raw);
     var one = normalizeAnswerLine(q.oneLiner || "");
     if (one && lines.indexOf(one) === -1) lines.unshift(one);
 
-    var explanation = lines.slice(0, 6);
+    var explanation = lines.slice(0, 7);
+    var exampleLine = questionExampleLine(q);
+    if (exampleLine && explanation.length < 7) explanation.push(exampleLine);
+    explanation = uniqLines(explanation);
     if (!explanation.length && one) explanation = [one];
 
-    var support = lines.slice(1, 6);
+    var support = lines.slice(1, 7);
     var guard = support.find(function (line) {
       return /(validate|retry|human|check|safe|risk|monitor|alert|schema|timeout|idempotent)/i.test(line);
-    }) || support[support.length - 1] || one;
+    }) || explanation[explanation.length - 1] || one;
+    var approach = support[0] || explanation[1] || one;
+    var implementation = support[1] || explanation[2] || approach;
 
-    var interview = [];
-    if (one) interview.push(one);
-    if (support[0] && support[0] !== one) interview.push(support[0]);
-    if (guard && interview.indexOf(guard) === -1) interview.push(guard);
-    if (!interview.length) interview = explanation.slice(0, 3);
+    var interview = uniqLines([
+      composeInterviewSentence("The core idea is ", one || approach),
+      composeInterviewSentence("The practical approach is to ", approach),
+      composeInterviewSentence("In implementation, this usually means ", implementation),
+      composeInterviewSentence("A key reliability check is ", guard),
+      exampleLine
+    ]);
+    if (!interview.length) interview = explanation.slice(0, 5);
 
     return { explanation: explanation, interview: interview };
   }
