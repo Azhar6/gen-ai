@@ -308,13 +308,109 @@
       ].join("\n"));
     }
 
-    if (q.sectionId === "python" || q.sectionId === "llm") {
-      return mk("Code example (Python utility)", [
-        "def safe_int(value, default=0):",
-        "    try:",
-        "        return int(value)",
-        "    except (TypeError, ValueError):",
-        "        return default",
+    if (q.sectionId === "python") {
+      if (/(generator|yield|large file|stream|chunk)/.test(text)) {
+        return mk("Code example (Python generator for large files)", [
+          "def iter_orders(path):",
+          "    with open(path, 'r', encoding='utf-8') as f:",
+          "        next(f)  # skip header",
+          "        for line in f:",
+          "            order_id, item, qty, price = line.strip().split(',')",
+          "            yield {",
+          "                'order_id': order_id,",
+          "                'item': item,",
+          "                'qty': int(qty),",
+          "                'price': float(price),",
+          "            }",
+        ].join("\n"));
+      }
+      if (/(decorator|retry)/.test(text)) {
+        return mk("Code example (retry decorator)", [
+          "import time",
+          "",
+          "def retry(times=2, delay=0.5):",
+          "    def wrap(fn):",
+          "        def inner(*args, **kwargs):",
+          "            last = None",
+          "            for _ in range(times + 1):",
+          "                try:",
+          "                    return fn(*args, **kwargs)",
+          "                except TimeoutError as e:",
+          "                    last = e",
+          "                    time.sleep(delay)",
+          "            raise last",
+          "        return inner",
+          "    return wrap",
+        ].join("\n"));
+      }
+      if (/(thread|process|gil|async)/.test(text)) {
+        return mk("Code example (thread pool for I/O calls)", [
+          "from concurrent.futures import ThreadPoolExecutor",
+          "",
+          "def fetch_one(order_id):",
+          "    return call_remote_api(order_id)",
+          "",
+          "with ThreadPoolExecutor(max_workers=8) as ex:",
+          "    results = list(ex.map(fetch_one, order_ids))",
+        ].join("\n"));
+      }
+      if (/(protocol|interface|dependency|inject|solid|class)/.test(text)) {
+        return mk("Code example (dependency injection with Protocol)", [
+          "from typing import Protocol",
+          "",
+          "class ModelClient(Protocol):",
+          "    def chat(self, messages: list[dict]) -> dict: ...",
+          "",
+          "class AssistantService:",
+          "    def __init__(self, model: ModelClient):",
+          "        self.model = model",
+        ].join("\n"));
+      }
+      return null;
+    }
+
+    if (q.sectionId === "llm") {
+      if (/(structured|json|schema|output|function calling|tool)/.test(text)) {
+        return mk("Code example (structured LLM output)", [
+          "schema = {",
+          "  'type': 'object',",
+          "  'properties': {",
+          "    'answer': {'type': 'string'},",
+          "    'confidence': {'type': 'number'}",
+          "  },",
+          "  'required': ['answer', 'confidence']",
+          "}",
+          "result = llm.generate(prompt=prompt, response_schema=schema)",
+        ].join("\n"));
+      }
+      if (/(temperature|top-p|top-k|sampling)/.test(text)) {
+        return mk("Code example (LLM settings for factual answers)", [
+          "result = llm.generate(",
+          "    prompt=prompt,",
+          "    temperature=0.1,",
+          "    top_p=0.9,",
+          "    max_tokens=400,",
+          ")",
+        ].join("\n"));
+      }
+      if (/(hallucination|ground|citation|verify)/.test(text)) {
+        return mk("Code example (grounded answer validation)", [
+          "draft = llm.generate(prompt_with_context)",
+          "facts = {row['qty'] for row in sql_rows}",
+          "numbers = extract_numbers(draft)",
+          "if any(n not in facts for n in numbers):",
+          "    raise ValueError('Ungrounded answer')",
+          "return draft",
+        ].join("\n"));
+      }
+      return mk("Code example (prompt with explicit constraints)", [
+        "prompt = '''",
+        "You are an assistant for interview prep.",
+        "Use only facts from CONTEXT.",
+        "If data is missing, say 'I do not know'.",
+        "Return 4 bullet points in simple English.",
+        "'''",
+        "answer = llm.generate(prompt + context_text)",
       ].join("\n"));
     }
 
