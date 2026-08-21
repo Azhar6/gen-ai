@@ -9,6 +9,10 @@
   let topicScope = null;
 
   function $(id) { return document.getElementById(id); }
+  function isAndroidDevice() { return /android/i.test(navigator.userAgent || ""); }
+  function isStandaloneMode() {
+    return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
+  }
 
   function loadUser() {
     try { return JSON.parse(localStorage.getItem(USER_KEY) || "{}"); }
@@ -789,6 +793,39 @@
     $("btnLibrary").addEventListener("click", showLibrary);
     $("btnHomeDock").addEventListener("click", showLibrary);
 
+    var moreRoot = document.querySelector(".more");
+    var moreBtn = $("btnMore");
+    var moreMenu = $("moreMenu");
+    function closeMoreMenu() {
+      if (!moreBtn || !moreMenu) return;
+      moreMenu.hidden = true;
+      moreBtn.setAttribute("aria-expanded", "false");
+      if (moreRoot) moreRoot.classList.remove("open");
+    }
+    function openMoreMenu() {
+      if (!moreBtn || !moreMenu) return;
+      moreMenu.hidden = false;
+      moreBtn.setAttribute("aria-expanded", "true");
+      if (moreRoot) moreRoot.classList.add("open");
+    }
+    if (moreBtn && moreMenu && moreRoot) {
+      moreBtn.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (moreMenu.hidden) openMoreMenu();
+        else closeMoreMenu();
+      });
+      moreMenu.addEventListener("click", function (e) {
+        e.stopPropagation();
+      });
+      document.addEventListener("click", function (e) {
+        if (!moreRoot.contains(e.target)) closeMoreMenu();
+      });
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") closeMoreMenu();
+      });
+    }
+
     function syncSearchClear() {
       $("btnClearSearch").hidden = !search;
     }
@@ -826,37 +863,57 @@
     }
 
     var deferredPrompt = null;
+    var isAndroid = isAndroidDevice();
     function showInstall(show) {
       $("btnInstall").hidden = !show;
       $("btnInstallSidebar").hidden = !show;
     }
-    var standalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
-    if (/iphone|ipad|ipod/i.test(navigator.userAgent) && !standalone) {
+    function showAndroidHint(show) {
+      var hint = $("androidHint");
+      if (hint) hint.hidden = !show;
+    }
+    function refreshInstallUI() {
+      var standalone = isStandaloneMode();
+      var canPrompt = !!deferredPrompt;
+      var showButtons = !standalone && (canPrompt || isAndroid);
+      showInstall(showButtons);
+      showAndroidHint(!standalone && isAndroid && !canPrompt);
+    }
+    if (/iphone|ipad|ipod/i.test(navigator.userAgent) && !isStandaloneMode()) {
       $("iosHint").hidden = false;
     }
+    refreshInstallUI();
     window.addEventListener("beforeinstallprompt", function (e) {
       e.preventDefault();
       deferredPrompt = e;
-      if (!standalone) showInstall(true);
+      refreshInstallUI();
     });
     window.addEventListener("appinstalled", function () {
       deferredPrompt = null;
-      showInstall(false);
+      refreshInstallUI();
     });
     function installApp() {
-      if (!deferredPrompt) return;
-      deferredPrompt.prompt();
-      deferredPrompt.userChoice.finally(function () {
-        deferredPrompt = null;
-        showInstall(false);
-      });
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.finally(function () {
+          deferredPrompt = null;
+          refreshInstallUI();
+        });
+        return;
+      }
+      if (isAndroid && !isStandaloneMode()) {
+        showAndroidHint(true);
+        alert("To install on Android: open browser menu (⋮) and tap Install app or Add to Home screen.");
+      }
     }
     $("btnInstall").addEventListener("click", installApp);
     $("btnInstallSidebar").addEventListener("click", installApp);
     $("btnExportOfficial").addEventListener("click", function () {
+      closeMoreMenu();
       download("interview-questions.json", JSON.stringify(data, null, 2));
     });
     $("btnExportUser").addEventListener("click", function () {
+      closeMoreMenu();
       var payload = {
         savedAt: new Date().toISOString(),
         source: "Interview library — user notes",
@@ -865,6 +922,7 @@
       download("my-interview-notes.json", JSON.stringify(payload, null, 2));
     });
     $("importUser").addEventListener("change", function (e) {
+      closeMoreMenu();
       var file = e.target.files && e.target.files[0];
       if (!file) return;
       var reader = new FileReader();

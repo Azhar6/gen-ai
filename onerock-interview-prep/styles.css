@@ -76,6 +76,7 @@ button, .btn, .nav button, .dock-btn, .icon-btn {
   color: #efe7d8;
   z-index: 30;
   overflow: visible;
+  position: relative;
 }
 
 .header-title {
@@ -96,23 +97,31 @@ button, .btn, .nav button, .dock-btn, .icon-btn {
   border-radius: 8px;
 }
 
-.more { position: relative; }
-.more summary {
-  list-style: none;
+.more {
+  position: relative;
+  flex: 0 0 auto;
+}
+.more-toggle {
   cursor: pointer;
   font-size: 12px;
   font-weight: 700;
   padding: 6px 10px;
   border-radius: 8px;
+  border: 0;
   background: #31463e;
   color: #efe7d8;
 }
-.more summary::-webkit-details-marker { display: none; }
+.more.open .more-toggle { background: #3a554b; }
+.more-toggle:focus-visible {
+  outline: 2px solid #8bc2af;
+  outline-offset: 2px;
+}
 .more-menu {
   position: absolute;
   right: 0;
   top: calc(100% + 6px);
   min-width: 180px;
+  max-width: min(82vw, 240px);
   background: #fffaf1;
   color: var(--ink);
   border: 1px solid var(--rule);
@@ -121,6 +130,7 @@ button, .btn, .nav button, .dock-btn, .icon-btn {
   z-index: 40;
   box-shadow: var(--shadow);
 }
+.more-menu[hidden] { display: none; }
 .more-menu button,
 .more-menu .file-btn {
   display: block;

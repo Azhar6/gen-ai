@@ -56,6 +56,7 @@
         <button type="button" id="btnLibrary" class="btn ghost library-link">All topics</button>
         <button type="button" id="btnInstallSidebar" class="btn install-btn" hidden>Install app</button>
         <p id="iosHint" class="ios-hint" hidden>iPhone: Share → Add to Home Screen</p>
+        <p id="androidHint" class="ios-hint" hidden>Android: browser menu (⋮) → Install app / Add to Home screen</p>
       </div>
     </aside>
 
@@ -66,17 +67,26 @@
         </button>
         <p id="mobileTitle" class="header-title">Question library</p>
         <p id="packLabel" class="sr-only">Practice pack</p>
-        <details class="more">
-          <summary>More</summary>
-          <div class="more-menu">
-            <button type="button" id="btnExportOfficial">Download Q&amp;A JSON</button>
-            <button type="button" id="btnExportUser">Export my notes</button>
-            <label class="file-btn">
+        <div class="more">
+          <button
+            type="button"
+            id="btnMore"
+            class="more-toggle"
+            aria-expanded="false"
+            aria-haspopup="menu"
+            aria-controls="moreMenu"
+          >
+            More
+          </button>
+          <div id="moreMenu" class="more-menu" role="menu" hidden>
+            <button type="button" id="btnExportOfficial" role="menuitem">Download Q&amp;A JSON</button>
+            <button type="button" id="btnExportUser" role="menuitem">Export my notes</button>
+            <label class="file-btn" role="menuitem">
               Import notes
               <input type="file" id="importUser" accept="application/json" hidden />
             </label>
           </div>
-        </details>
+        </div>
         <button type="button" id="btnInstall" class="btn install-btn header-install" hidden>Install</button>
       </header>
       <article id="panel" class="panel"></article>
