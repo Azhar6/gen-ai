@@ -23,31 +23,37 @@
     <div id="scrim" class="scrim" hidden></div>
 
     <aside id="sidebar" class="sidebar">
-      <div class="sidebar-head">
-        <div class="brand">
-          <p class="brand-kicker">AI Engineer</p>
-          <h1>Topics</h1>
+      <div class="sidebar-top">
+        <div class="sidebar-head">
+          <div class="brand">
+            <p class="brand-kicker">AI Engineer</p>
+            <h1>Question Navigator</h1>
+          </div>
+          <button type="button" id="btnCloseSidebar" class="icon-btn close-sidebar" aria-label="Close menu">
+            <span aria-hidden="true">×</span>
+          </button>
         </div>
-        <button type="button" id="btnCloseSidebar" class="icon-btn close-sidebar" aria-label="Close menu">
-          <span aria-hidden="true">×</span>
-        </button>
-      </div>
-      <div class="sidebar-tools">
-        <label class="search-wrap">
-          <span class="search-icon" aria-hidden="true"></span>
-          <span class="sr-only">Search questions</span>
-          <input id="search" type="search" placeholder="Search topics" autocomplete="off" />
-          <button type="button" id="btnClearSearch" class="search-clear" hidden aria-label="Clear search">×</button>
-        </label>
-        <div class="chips" role="tablist" aria-label="Filter questions">
-          <button type="button" class="chip active" data-filter="all">All</button>
-          <button type="button" class="chip" data-filter="priority">First 15</button>
-          <button type="button" class="chip" data-filter="todo">To do</button>
-          <button type="button" class="chip" data-filter="done">Done</button>
-        </div>
-        <div class="progress-block">
-          <div class="side-progress"><span id="progressBar"></span></div>
-          <p id="progressLine" class="progress-line"></p>
+        <div class="sidebar-tools">
+          <label class="search-wrap">
+            <span class="search-icon" aria-hidden="true"></span>
+            <span class="sr-only">Search questions</span>
+            <input id="search" type="search" placeholder="Search by topic or keyword" autocomplete="off" />
+            <button type="button" id="btnClearSearch" class="search-clear" hidden aria-label="Clear search">×</button>
+          </label>
+          <div class="chips" role="tablist" aria-label="Filter questions">
+            <button type="button" class="chip active" data-filter="all">All</button>
+            <button type="button" class="chip" data-filter="priority">First 15</button>
+            <button type="button" class="chip" data-filter="todo">To do</button>
+            <button type="button" class="chip" data-filter="done">Done</button>
+          </div>
+          <div class="progress-block">
+            <div class="side-progress"><span id="progressBar"></span></div>
+            <p id="progressLine" class="progress-line"></p>
+          </div>
+          <div class="nav-actions">
+            <button type="button" id="btnExpandAll" class="chip action-chip">Expand all</button>
+            <button type="button" id="btnCollapseAll" class="chip action-chip">Collapse all</button>
+          </div>
         </div>
       </div>
       <p class="sr-only" id="brandSub"></p>

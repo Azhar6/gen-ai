@@ -825,12 +825,12 @@
         return;
       }
       any = true;
-      html += '<div class="nav-group' + (isOpen ? " open" : "") + (current ? " current" : "") + (allInSection.length === 0 ? " empty" : "") + '" data-section="' + escapeHtml(sec.id) + '">';
-      html += '<button type="button" class="nav-group-head" data-toggle="' + escapeHtml(sec.id) + '" aria-expanded="' + (isOpen ? "true" : "false") + '">';
+      html += '<details class="nav-group' + (current ? " current" : "") + (allInSection.length === 0 ? " empty" : "") + '" data-section="' + escapeHtml(sec.id) + '"' + (isOpen ? " open" : "") + ">";
+      html += '<summary class="nav-group-head" aria-expanded="' + (isOpen ? "true" : "false") + '">';
       html += '<span class="nav-toggle" aria-hidden="true">▸</span>';
       html += '<span class="nav-group-name">' + escapeHtml(sec.name) + "</span>";
       html += '<span class="nav-count">' + qs.length + "</span>";
-      html += "</button><div class='nav-group-body'>";
+      html += "</summary><div class='nav-group-body'>";
       if (allInSection.length === 0) {
         html += '<p class="coming">Coming next.</p>';
       } else if (qs.length === 0) {
@@ -846,21 +846,17 @@
           html += "</button>";
         });
       }
-      html += "</div></div>";
+      html += "</div></details>";
     });
     if (!any) html = '<p class="nav-empty">No questions match. Clear search or pick All.</p>';
     $("nav").innerHTML = html;
 
-    Array.prototype.forEach.call($("nav").querySelectorAll("[data-toggle]"), function (btn) {
-      btn.addEventListener("click", function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        var id = btn.getAttribute("data-toggle");
-        var group = btn.closest(".nav-group");
-        var open = !group.classList.contains("open");
-        openGroups[id] = open;
-        group.classList.toggle("open", open);
-        btn.setAttribute("aria-expanded", open ? "true" : "false");
+    Array.prototype.forEach.call($("nav").querySelectorAll(".nav-group"), function (group) {
+      group.addEventListener("toggle", function () {
+        var id = group.getAttribute("data-section");
+        openGroups[id] = group.open;
+        var summary = group.querySelector(".nav-group-head");
+        if (summary) summary.setAttribute("aria-expanded", group.open ? "true" : "false");
       });
     });
     Array.prototype.forEach.call($("nav").querySelectorAll("[data-i]"), function (btn) {
@@ -989,9 +985,16 @@
   }
 
   function syncChips() {
-    Array.prototype.forEach.call(document.querySelectorAll(".chip"), function (chip) {
+    Array.prototype.forEach.call(document.querySelectorAll(".chip[data-filter]"), function (chip) {
       chip.classList.toggle("active", chip.getAttribute("data-filter") === filter);
     });
+  }
+
+  function setAllNavGroups(open) {
+    (data.sections || []).forEach(function (sec) {
+      openGroups[sec.id] = open;
+    });
+    renderNav();
   }
 
   function download(filename, text) {
@@ -1111,13 +1114,25 @@
       $("search").focus();
       renderNav();
     });
-    Array.prototype.forEach.call(document.querySelectorAll(".chip"), function (chip) {
+    Array.prototype.forEach.call(document.querySelectorAll(".chip[data-filter]"), function (chip) {
       chip.addEventListener("click", function () {
         filter = chip.getAttribute("data-filter");
         syncChips();
         renderNav();
       });
     });
+    var btnExpandAll = $("btnExpandAll");
+    if (btnExpandAll) {
+      btnExpandAll.addEventListener("click", function () {
+        setAllNavGroups(true);
+      });
+    }
+    var btnCollapseAll = $("btnCollapseAll");
+    if (btnCollapseAll) {
+      btnCollapseAll.addEventListener("click", function () {
+        setAllNavGroups(false);
+      });
+    }
 
     $("btnPrevDock").addEventListener("click", function () {
       if (view === "library") return;
