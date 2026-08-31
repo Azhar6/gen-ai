@@ -1,4 +1,4 @@
-const CACHE_NAME = "genai-prep-v3";
+const CACHE_NAME = "genai-prep-v4";
 const APP_SHELL = [
   "./",
   "./index.html",

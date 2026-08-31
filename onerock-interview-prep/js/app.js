@@ -17,6 +17,8 @@ const elements = {
   title: document.getElementById("screenTitle"),
   subtitle: document.getElementById("screenSubtitle"),
   themeLabel: document.getElementById("themeLabel"),
+  themeBtnTop: document.getElementById("themeBtnTop"),
+  themeIconTop: document.getElementById("themeIconTop"),
   searchInput: document.getElementById("searchInput"),
   categoryFilter: document.getElementById("categoryFilter"),
   difficultyFilter: document.getElementById("difficultyFilter"),
@@ -62,6 +64,9 @@ function setTheme(theme) {
   saveState(state);
   if (elements.themeLabel) {
     elements.themeLabel.textContent = theme === "dark" ? "Light mode" : "Dark mode";
+  }
+  if (elements.themeIconTop) {
+    elements.themeIconTop.textContent = theme === "dark" ? "☀️" : "🌙";
   }
 }
 
@@ -290,6 +295,7 @@ function bindGlobalEvents() {
   elements.closeSidebarBtn.addEventListener("click", closeSidebar);
   elements.scrim.addEventListener("click", closeSidebar);
   elements.themeBtn.addEventListener("click", toggleTheme);
+  elements.themeBtnTop.addEventListener("click", toggleTheme);
 
   elements.searchInput.addEventListener("input", (event) => {
     uiFilters.query = event.target.value;
