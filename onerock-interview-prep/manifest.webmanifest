@@ -1,18 +1,18 @@
 {
   "id": "./",
-  "name": "Interview Prep",
-  "short_name": "Interview Prep",
-  "description": "AI Engineer interview questions, with simple examples, diagrams, and your notes.",
-  "start_url": "./index.html",
+  "name": "GenAI Engineer Interview Prep",
+  "short_name": "GenAI Prep",
+  "description": "Mobile-first interview prep app for Generative AI / Agentic AI Engineer roles.",
+  "start_url": "./index.html#/home",
   "scope": "./",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
   "orientation": "portrait-primary",
-  "theme_color": "#1b2420",
-  "background_color": "#1b2420",
+  "theme_color": "#0f172a",
+  "background_color": "#0f172a",
   "lang": "en",
   "dir": "ltr",
-  "categories": ["education", "productivity"],
+  "categories": ["education", "productivity", "developer"],
   "icons": [
     {
       "src": "icons/icon-192.png",
@@ -37,6 +37,12 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    },
+    {
+      "src": "icons/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }

@@ -3,15 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#1b2420" />
-  <meta name="color-scheme" content="light" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="description" content="Mobile-first GenAI / Agentic AI Engineer interview preparation app." />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Interview Prep" />
-  <meta name="application-name" content="Interview Prep" />
-  <meta name="description" content="AI Engineer questions with detailed answers, tables, and diagrams." />
-  <title>AI Engineer — Questions and answers</title>
+  <meta name="apple-mobile-web-app-title" content="GenAI Prep" />
+  <title>GenAI Engineer Interview Prep</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
@@ -19,79 +17,79 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="app">
-    <div id="scrim" class="scrim" hidden></div>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="app-shell">
+    <aside id="sidebar" class="sidebar" aria-label="Primary navigation">
+      <div class="sidebar-header">
+        <div>
+          <p class="kicker">Interview Prep</p>
+          <h1>GenAI Engineer</h1>
+        </div>
+        <button id="closeSidebarBtn" class="icon-btn desktop-hidden" type="button" aria-label="Close menu">✕</button>
+      </div>
 
-    <aside id="sidebar" class="sidebar">
-      <div class="sidebar-head">
-        <div class="brand">
-          <p class="brand-kicker">AI Engineer</p>
-          <h1>Topics</h1>
-        </div>
-        <button type="button" id="btnCloseSidebar" class="icon-btn close-sidebar" aria-label="Close menu">
-          <span aria-hidden="true">×</span>
-        </button>
-      </div>
-      <div class="sidebar-tools">
-        <label class="search-wrap">
-          <span class="search-icon" aria-hidden="true"></span>
-          <span class="sr-only">Search questions</span>
-          <input id="search" type="search" placeholder="Search topics" autocomplete="off" />
-          <button type="button" id="btnClearSearch" class="search-clear" hidden aria-label="Clear search">×</button>
-        </label>
-        <div class="chips" role="tablist" aria-label="Filter questions">
-          <button type="button" class="chip active" data-filter="all">All</button>
-          <button type="button" class="chip" data-filter="priority">First 15</button>
-          <button type="button" class="chip" data-filter="todo">To do</button>
-          <button type="button" class="chip" data-filter="done">Done</button>
-        </div>
-        <div class="progress-block">
-          <div class="side-progress"><span id="progressBar"></span></div>
-          <p id="progressLine" class="progress-line"></p>
-        </div>
-      </div>
-      <p class="sr-only" id="brandSub"></p>
-      <nav id="nav" class="nav" aria-label="Questions by topic"></nav>
-      <div class="sidebar-foot">
-        <button type="button" id="btnLibrary" class="btn ghost library-link">All topics</button>
-        <button type="button" id="btnInstallSidebar" class="btn install-btn" hidden>Install app</button>
-        <p id="iosHint" class="ios-hint" hidden>iPhone: Share → Add to Home Screen</p>
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-route="#/home" type="button">Home</button>
+        <button class="nav-item" data-route="#/categories" type="button">Categories</button>
+        <button class="nav-item" data-route="#/bookmarks" type="button">Bookmarks</button>
+        <button class="nav-item" data-route="#/progress" type="button">Progress</button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button id="themeBtn" class="ghost-btn" type="button">Toggle theme</button>
+        <button id="installBtnSide" class="primary-btn" type="button" hidden>Install app</button>
       </div>
     </aside>
 
-    <main class="main">
-      <header class="site-header">
-        <button type="button" id="btnMenu" class="icon-btn menu-btn" aria-label="Open question list" aria-controls="sidebar">
-          <span class="hamburger"></span>
-        </button>
-        <p id="mobileTitle" class="header-title">Question library</p>
-        <p id="packLabel" class="sr-only">Practice pack</p>
-        <details class="more">
-          <summary>More</summary>
-          <div class="more-menu">
-            <button type="button" id="btnExportOfficial">Download Q&amp;A JSON</button>
-            <button type="button" id="btnExportUser">Export my notes</button>
-            <label class="file-btn">
-              Import notes
-              <input type="file" id="importUser" accept="application/json" hidden />
-            </label>
-          </div>
-        </details>
-        <button type="button" id="btnInstall" class="btn install-btn header-install" hidden>Install</button>
+    <div id="scrim" class="scrim" hidden></div>
+
+    <div class="main-shell">
+      <header class="topbar">
+        <button id="openSidebarBtn" class="icon-btn desktop-hidden" type="button" aria-label="Open menu">☰</button>
+        <div class="title-wrap">
+          <p class="kicker">Mobile-first study app</p>
+          <h2 id="screenTitle">Home</h2>
+        </div>
+        <button id="installBtnTop" class="primary-btn" type="button" hidden>Install</button>
       </header>
-      <article id="panel" class="panel"></article>
-      <nav class="dock" aria-label="Quick navigation">
-        <button type="button" id="btnPrevDock" class="dock-btn">Previous</button>
-        <button type="button" id="btnHomeDock" class="dock-btn home" aria-label="Go to topic home">
-          <span>Home</span>
-          <small id="dockCount">topics</small>
-        </button>
-        <button type="button" id="btnNextDock" class="dock-btn primary">Next</button>
+
+      <section class="controls">
+        <label class="search-field">
+          <span class="visually-hidden">Search questions and answers</span>
+          <input id="searchInput" type="search" placeholder="Search questions, answers, technologies..." autocomplete="off" />
+        </label>
+        <select id="categoryFilter" aria-label="Filter by category">
+          <option value="all">All categories</option>
+        </select>
+        <select id="difficultyFilter" aria-label="Filter by difficulty">
+          <option value="all">All difficulty levels</option>
+          <option value="beginner">Beginner</option>
+          <option value="intermediate">Intermediate</option>
+          <option value="advanced">Advanced</option>
+        </select>
+      </section>
+
+      <main id="main" class="content" tabindex="-1"></main>
+
+      <nav class="bottom-nav" aria-label="Mobile navigation">
+        <button class="bottom-nav-item active" data-route="#/home" type="button">Home</button>
+        <button class="bottom-nav-item" data-route="#/categories" type="button">Categories</button>
+        <button class="bottom-nav-item" data-route="#/bookmarks" type="button">Saved</button>
+        <button class="bottom-nav-item" data-route="#/progress" type="button">Progress</button>
       </nav>
-    </main>
+    </div>
   </div>
 
-  <script src="questions-data.js"></script>
-  <script src="app.js"></script>
+  <template id="codeBlockTemplate">
+    <div class="code-wrap">
+      <div class="code-head">
+        <span class="code-lang"></span>
+        <button type="button" class="copy-btn">Copy</button>
+      </div>
+      <pre><code></code></pre>
+    </div>
+  </template>
+
+  <script type="module" src="js/app.js"></script>
 </body>
 </html>
