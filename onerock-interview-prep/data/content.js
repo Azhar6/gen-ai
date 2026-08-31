@@ -1,3 +1,5 @@
+import { DEEP_ANSWERS, DEEP_CODE } from "./answers-deep.js";
+
 const APP_INFO = {
   role: "Generative AI / Agentic AI Engineer",
   subtitle: "Mobile-first interview preparation",
@@ -1518,7 +1520,10 @@ function buildTags(question, category) {
 
 const QUESTIONS = QUESTION_BANK.map((item, index) => {
   const category = CATEGORIES.find((entry) => entry.id === item.categoryId);
-  const answer = EXPLICIT_ANSWERS[item.question] || buildFallbackAnswer(item.question, category);
+  const answer =
+    DEEP_ANSWERS[item.question] ||
+    EXPLICIT_ANSWERS[item.question] ||
+    buildFallbackAnswer(item.question, category);
   const enrichment = ENRICHMENTS[item.question] || {};
   return {
     id: `q-${index + 1}-${slugify(item.question)}`,
@@ -1531,7 +1536,7 @@ const QUESTIONS = QUESTION_BANK.map((item, index) => {
     tags: buildTags(item.question, category),
     tableId: enrichment.tableId || null,
     diagramId: enrichment.diagramId || null,
-    codeExample: CODE_EXAMPLES[item.question] || null
+    codeExample: DEEP_CODE[item.question] || CODE_EXAMPLES[item.question] || null
   };
 });
 
