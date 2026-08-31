@@ -77,12 +77,17 @@
       </header>
 
       <section class="controls" id="controlsBar">
-        <label class="search-field">
-          <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 2a8 8 0 1 0 4.9 14.3l5.4 5.4 1.4-1.4-5.4-5.4A8 8 0 0 0 10 2zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12z"/></svg>
-          <span class="visually-hidden">Search questions and answers</span>
-          <input id="searchInput" type="search" placeholder="Search 260 questions..." autocomplete="off" />
-        </label>
-        <div class="filter-row">
+        <div class="search-row">
+          <label class="search-field">
+            <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 2a8 8 0 1 0 4.9 14.3l5.4 5.4 1.4-1.4-5.4-5.4A8 8 0 0 0 10 2zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12z"/></svg>
+            <span class="visually-hidden">Search questions and answers</span>
+            <input id="searchInput" type="search" placeholder="Search 260 questions..." autocomplete="off" />
+          </label>
+          <button id="filterToggle" class="icon-btn filter-btn" type="button" aria-label="Show filters" aria-expanded="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18l-7 8v5l-4 2v-7z"/></svg>
+          </button>
+        </div>
+        <div class="filter-row" id="filterRow" hidden>
           <select id="categoryFilter" aria-label="Filter by category">
             <option value="all">All categories</option>
           </select>

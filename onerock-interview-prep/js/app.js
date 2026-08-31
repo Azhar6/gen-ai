@@ -28,7 +28,9 @@ const elements = {
   scrim: document.getElementById("scrim"),
   installBtnTop: document.getElementById("installBtnTop"),
   installBtnSide: document.getElementById("installBtnSide"),
-  themeBtn: document.getElementById("themeBtn")
+  themeBtn: document.getElementById("themeBtn"),
+  filterToggle: document.getElementById("filterToggle"),
+  filterRow: document.getElementById("filterRow")
 };
 
 const state = loadState();
@@ -325,6 +327,49 @@ function bindGlobalEvents() {
 
   elements.main.addEventListener("click", handleActionClick);
   window.addEventListener("hashchange", render);
+
+  elements.filterToggle.addEventListener("click", () => {
+    const show = elements.filterRow.hidden;
+    elements.filterRow.hidden = !show;
+    elements.filterToggle.classList.toggle("active", show);
+    elements.filterToggle.setAttribute("aria-expanded", String(show));
+  });
+
+  setupChromeAutoHide();
+}
+
+// Hide bottom nav + search bar while scrolling down; reveal on scroll up.
+function setupChromeAutoHide() {
+  let lastY = window.scrollY;
+  let ticking = false;
+
+  function onScroll() {
+    const y = window.scrollY;
+    if (y > lastY + 6 && y > 120) {
+      document.body.classList.add("chrome-hidden");
+    } else if (y < lastY - 6 || y < 60) {
+      document.body.classList.remove("chrome-hidden");
+    }
+    lastY = y;
+    ticking = false;
+  }
+
+  window.addEventListener(
+    "scroll",
+    () => {
+      if (!ticking) {
+        ticking = true;
+        requestAnimationFrame(onScroll);
+      }
+    },
+    { passive: true }
+  );
+
+  // Always reveal navigation after a route change.
+  window.addEventListener("hashchange", () => {
+    document.body.classList.remove("chrome-hidden");
+    lastY = 0;
+  });
 }
 
 function boot() {
