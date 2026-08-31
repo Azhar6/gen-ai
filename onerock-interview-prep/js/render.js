@@ -534,9 +534,9 @@ function wireRichInteractions(root) {
       const id = slider.getAttribute("data-diagram-zoom");
       const canvas = root.querySelector(`[data-diagram-canvas="${id}"]`);
       if (!canvas) return;
-      const value = Number(slider.value) / 100;
-      canvas.style.transform = `scale(${value})`;
-      canvas.style.transformOrigin = "top center";
+      // `zoom` affects layout, so the overflow container scrolls correctly
+      // instead of clipping the scaled content like transform would.
+      canvas.style.zoom = String(Number(slider.value) / 100);
     });
   });
 }

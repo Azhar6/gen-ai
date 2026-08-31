@@ -58,6 +58,8 @@ html,
 body {
   margin: 0;
   min-height: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
   font-family: "Inter", "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif;
   background: var(--bg);
   color: var(--text);
@@ -390,6 +392,19 @@ select {
   gap: 14px;
   align-content: start;
   animation: fadeUp 0.24s ease;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+/* Prevent grid/flex children from forcing the page wider than the viewport.
+   Wide content (tables, code, diagrams) scrolls inside its own wrapper instead. */
+.content > *,
+.grid > *,
+.card,
+.section-block,
+.q-row-body,
+.category-body {
+  min-width: 0;
 }
 
 @keyframes fadeUp {
@@ -494,7 +509,7 @@ select {
 
 .stats-row {
   display: grid;
-  grid-template-columns: auto 1fr 1fr;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px;
   align-items: stretch;
 }
@@ -645,7 +660,7 @@ select {
 .category-card {
   position: relative;
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 14px;
   padding: 16px 14px;
@@ -743,6 +758,17 @@ select {
   font-size: 1.5rem;
 }
 
+.list-header > div {
+  min-width: 0;
+}
+
+.q-title,
+.question-head h3,
+.list-header h3,
+.category-body h4 {
+  overflow-wrap: break-word;
+}
+
 .list-header h3 {
   margin: 0 0 4px;
   font-size: 1.1rem;
@@ -757,7 +783,7 @@ select {
 
 .question-row {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
   padding: 14px;
@@ -1217,10 +1243,14 @@ tr:last-child td {
 
 .chart-row {
   display: grid;
-  grid-template-columns: minmax(80px, 34%) 1fr auto;
+  grid-template-columns: minmax(70px, 34%) minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
   font-size: 0.85rem;
+}
+
+.chart-row > span:first-child {
+  overflow-wrap: break-word;
 }
 
 .chart-track {
@@ -1325,7 +1355,7 @@ tr:last-child td {
 
 .progress-cat-row {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
   padding: 13px 14px;
