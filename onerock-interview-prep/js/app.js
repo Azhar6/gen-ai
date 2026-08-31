@@ -15,6 +15,8 @@ import { setupPWAInstall, registerServiceWorker } from "./pwa.js";
 const elements = {
   main: document.getElementById("main"),
   title: document.getElementById("screenTitle"),
+  subtitle: document.getElementById("screenSubtitle"),
+  themeLabel: document.getElementById("themeLabel"),
   searchInput: document.getElementById("searchInput"),
   categoryFilter: document.getElementById("categoryFilter"),
   difficultyFilter: document.getElementById("difficultyFilter"),
@@ -58,6 +60,9 @@ function setTheme(theme) {
   document.documentElement.dataset.theme = theme;
   state.theme = theme;
   saveState(state);
+  if (elements.themeLabel) {
+    elements.themeLabel.textContent = theme === "dark" ? "Light mode" : "Dark mode";
+  }
 }
 
 function toggleTheme() {
@@ -113,28 +118,32 @@ function render() {
   const progress = getProgress(state, APP_CONTENT.questions.length);
   let html = "";
   let title = "Home";
+  let subtitle = "GenAI Engineer prep";
 
   if (route.name === "home") {
     const recentQuestions = state.recent.map(getQuestionById).filter(Boolean);
-    html = renderHome(APP_CONTENT, progress, recentQuestions);
+    const continueQuestion = state.lastQuestionId ? getQuestionById(state.lastQuestionId) : null;
+    html = renderHome(APP_CONTENT, progress, recentQuestions, state, continueQuestion);
     title = "Home";
+    subtitle = `${progress.done}/${progress.total} questions done`;
   } else if (route.name === "categories") {
-    html = renderCategories(APP_CONTENT.categories, APP_CONTENT.questions, state.completed);
-    if (uiFilters.query || uiFilters.difficulty !== "all" || uiFilters.categoryId !== "all") {
+    const hasActiveFilters =
+      uiFilters.query || uiFilters.difficulty !== "all" || uiFilters.categoryId !== "all";
+    if (hasActiveFilters) {
       const matches = filtered();
-      html += `
-        <section class="hero-card card">
-          <h3>Search results</h3>
-          <p class="muted">${matches.length} questions match current filters.</p>
-        </section>
-      `;
-      html += renderQuestionList(
-        { name: "Filtered questions", description: "Results from questions and answers." },
+      html = renderQuestionList(
+        {
+          name: "Search results",
+          description: `${matches.length} questions match your search and filters.`
+        },
         matches,
         state
       );
+    } else {
+      html = renderCategories(APP_CONTENT.categories, APP_CONTENT.questions, state.completed);
     }
     title = "Categories";
+    subtitle = `${APP_CONTENT.categories.length} topics · ${APP_CONTENT.questions.length} questions`;
   } else if (route.name === "category") {
     const category = getCategoryById(route.id);
     if (!category) {
@@ -145,6 +154,7 @@ function render() {
     const visible = filtered(list, category.id);
     html = renderQuestionList(category, visible, state);
     title = category.name;
+    subtitle = `${visible.length} questions`;
   } else if (route.name === "question") {
     const question = getQuestionById(route.id);
     if (!question) {
@@ -166,11 +176,13 @@ function render() {
       nextId: currentIndex < allInCategory.length - 1 ? allInCategory[currentIndex + 1].id : null
     };
     html = renderQuestionDetail(APP_CONTENT, question, state, getRelated(question), navInfo);
-    title = "Question detail";
+    title = question.categoryName;
+    subtitle = `Question ${navInfo.position} of ${navInfo.total}`;
   } else if (route.name === "bookmarks") {
     const bookmarkedQuestions = APP_CONTENT.questions.filter((question) => state.bookmarks[question.id]);
-    html = renderBookmarks(filtered(bookmarkedQuestions));
+    html = renderBookmarks(filtered(bookmarkedQuestions), state);
     title = "Bookmarks";
+    subtitle = `${bookmarkedQuestions.length} saved questions`;
   } else if (route.name === "progress") {
     const rows = APP_CONTENT.categories.map((category) => {
       const categoryQuestions = APP_CONTENT.questions.filter(
@@ -179,14 +191,16 @@ function render() {
       const done = categoryQuestions.filter((question) => state.completed[question.id]).length;
       const total = categoryQuestions.length;
       const percent = total ? Math.round((done / total) * 100) : 0;
-      return { name: category.name, done, total, percent };
+      return { id: category.id, name: category.name, done, total, percent };
     });
     html = renderProgressPage(progress, rows);
     title = "Progress";
+    subtitle = `${progress.percent}% complete`;
   }
 
   elements.main.innerHTML = html;
   elements.title.textContent = title;
+  if (elements.subtitle) elements.subtitle.textContent = subtitle;
   elements.main.focus({ preventScroll: true });
   wireRichInteractions(elements.main);
   syncNav(route);
