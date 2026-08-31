@@ -1,0 +1,16 @@
+{
+  "name": "GenAI Interview Prep PWA",
+  "terminals": [
+    {
+      "name": "web",
+      "command": "cd onerock-interview-prep && python3 -m http.server 4173",
+      "description": "Serves the static GenAI Interview Prep PWA at http://localhost:4173/ (open index.html)."
+    }
+  ],
+  "ports": [
+    {
+      "name": "web",
+      "port": 4173
+    }
+  ]
+}
