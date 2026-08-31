@@ -295,18 +295,19 @@ button {
   z-index: 30;
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-height: 52px;
-  padding: 6px 12px;
+  gap: 7px;
+  min-height: 50px;
+  padding: 5px 10px;
   background: color-mix(in oklab, var(--bg) 88%, transparent);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--border);
 }
 
 .topbar .icon-btn {
-  min-width: 38px;
-  min-height: 38px;
+  min-width: 40px;
+  min-height: 40px;
   border-radius: 11px;
+  flex-shrink: 0;
 }
 
 .topbar .icon-btn svg {
@@ -314,11 +315,10 @@ button {
   height: 18px;
 }
 
+/* On mobile the page title lives in the content, not the header. */
 .title-wrap {
+  display: none;
   min-width: 0;
-  flex: 1;
-  display: grid;
-  gap: 0;
 }
 
 .title-wrap h2 {
@@ -341,35 +341,21 @@ button {
 
 /* ---------- controls ---------- */
 
-.controls {
+.filter-panel {
   position: sticky;
-  top: 52px;
+  top: 50px;
   z-index: 25;
   display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
-  padding: 8px 12px;
+  padding: 8px 10px;
   background: color-mix(in oklab, var(--bg) 94%, transparent);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--border);
-  transition: transform 0.25s ease, opacity 0.2s ease;
 }
 
-body.chrome-hidden .controls {
-  transform: translateY(-130%);
-  opacity: 0;
-  pointer-events: none;
-}
-
-.search-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: center;
-}
-
-.filter-btn {
-  min-width: 44px;
-  min-height: 44px;
+.filter-panel[hidden] {
+  display: none;
 }
 
 .filter-btn.active {
@@ -381,40 +367,35 @@ body.chrome-hidden .controls {
 .search-field {
   position: relative;
   display: block;
+  flex: 1;
+  min-width: 0;
 }
 
 .search-icon {
   position: absolute;
-  left: 14px;
+  left: 12px;
   top: 50%;
   transform: translateY(-50%);
-  width: 17px;
-  height: 17px;
+  width: 16px;
+  height: 16px;
   fill: var(--muted);
   pointer-events: none;
 }
 
 .search-field input {
   width: 100%;
-  height: 44px;
-  border-radius: 13px;
+  height: 40px;
+  border-radius: 12px;
   border: 1px solid var(--border);
   background: var(--panel);
   color: var(--text);
-  padding: 0 14px 0 40px;
+  padding: 0 12px 0 36px;
   font-size: 1rem;
-  box-shadow: var(--shadow);
 }
 
 .search-field input:focus {
   outline: 2px solid var(--primary);
   outline-offset: -1px;
-}
-
-.filter-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
 }
 
 select {
@@ -1531,27 +1512,28 @@ body.chrome-hidden .bottom-nav {
     display: none;
   }
 
-  .controls {
-    top: 53px;
-    grid-template-columns: minmax(280px, 1.4fr) 1fr;
-    align-items: center;
+  .title-wrap {
+    display: grid;
+    flex: 0 1 auto;
+    margin-right: auto;
+    min-width: 140px;
   }
 
-  body.chrome-hidden .controls {
-    transform: none;
-    opacity: 1;
-    pointer-events: auto;
+  .search-field {
+    flex: 0 1 380px;
   }
 
   .filter-btn {
     display: none;
   }
 
-  .filter-row,
-  .filter-row[hidden] {
+  /* Desktop has room: filters always visible in one line. */
+  .filter-panel,
+  .filter-panel[hidden] {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
+    grid-template-columns: minmax(180px, 240px) minmax(160px, 200px);
+    justify-content: end;
+    top: 63px;
   }
 
   .content {
