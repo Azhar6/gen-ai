@@ -324,7 +324,7 @@ function renderHome(content, progress, recentQuestions, state, continueQuestion)
       <button class="mode-card" type="button" data-mode-filter="code">
         <span class="mode-icon">💻</span>
         <strong>Coding & Algorithms</strong>
-        <span>36 questions with runnable Python/FastAPI code</span>
+        <span>95 questions with runnable Python/FastAPI code</span>
       </button>
       <button class="mode-card" type="button" data-mode-filter="system-design">
         <span class="mode-icon">🏗️</span>
