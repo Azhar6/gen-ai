@@ -1,11 +1,19 @@
-const CACHE_NAME = "genai-prep-v7";
+const CACHE_NAME = "genai-prep-v8";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./styles.css",
   "./manifest.webmanifest",
   "./data/content.js",
-  "./data/answers-deep.js",
+  "./data/section-python.js",
+  "./data/section-fastapi.js",
+  "./data/section-genai.js",
+  "./data/section-rag.js",
+  "./data/section-agentic.js",
+  "./data/section-cloud.js",
+  "./data/section-ops.js",
+  "./data/section-system-customer.js",
+  "./data/section-security-scenarios.js",
   "./js/app.js",
   "./js/render.js",
   "./js/search.js",
