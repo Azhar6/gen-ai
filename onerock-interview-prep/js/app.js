@@ -236,6 +236,27 @@ function handleActionClick(event) {
     return;
   }
 
+  const modeFilter = button.getAttribute("data-mode-filter");
+  if (modeFilter) {
+    if (modeFilter === "code") {
+      uiFilters.query = "def ";
+      location.hash = "#/categories";
+    } else if (modeFilter === "system-design") {
+      uiFilters.categoryId = "system-design";
+      elements.categoryFilter.value = "system-design";
+      location.hash = "#/category/system-design";
+    } else if (modeFilter === "scenario") {
+      uiFilters.categoryId = "scenario";
+      elements.categoryFilter.value = "scenario";
+      location.hash = "#/category/scenario";
+    } else if (modeFilter === "agentic") {
+      uiFilters.categoryId = "agentic";
+      elements.categoryFilter.value = "agentic";
+      location.hash = "#/category/agentic";
+    }
+    return;
+  }
+
   const openCategoryId = button.getAttribute("data-open-category");
   if (openCategoryId) {
     elements.categoryFilter.value = openCategoryId;

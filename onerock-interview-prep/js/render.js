@@ -236,21 +236,33 @@ function renderHome(content, progress, recentQuestions, state, continueQuestion)
     ? `<p class="sub">Pick up where you left off: “${escapeHtml(continueQuestion.question)}”</p>`
     : `<p class="sub">${escapeHtml(info.shortDescription)}</p>`;
 
-  const topCategories = ["agentic", "rag", "python", "fastapi", "genai", "system-design"];
+  // 1. Dynamic Question of the Day based on day of the year
+  const dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / (1000 * 60 * 60 * 24));
+  const dailyQuestion = questions[dayOfYear % questions.length] || questions[0];
+  const isDailyDone = Boolean(state.completed[dailyQuestion.id]);
+  const isDailySaved = Boolean(state.bookmarks[dailyQuestion.id]);
+
+  // 2. High-Impact Quick Topic Chips
+  const topCategories = ["agentic", "rag", "python", "fastapi", "genai", "system-design", "mcp", "security"];
   const quickChips = topCategories
     .map((id) => {
       const category = categories.find((entry) => entry.id === id);
       if (!category) return "";
+      const catQs = questions.filter(q => q.categoryId === id);
+      const catDone = catQs.filter(q => state.completed[q.id]).length;
       return `
         <button class="quick-topic" type="button" data-open-category="${category.id}">
-          <span class="emoji">${catMeta(category.id).icon}</span>${escapeHtml(category.name)}
+          <span class="emoji">${catMeta(category.id).icon}</span>
+          <span>${escapeHtml(category.name)}</span>
+          <small class="muted" style="font-size:0.75rem;font-weight:700;">(${catDone}/${catQs.length})</small>
         </button>`;
     })
     .join("");
 
+  // 3. Recently viewed
   const recent = recentQuestions.length
     ? `<div class="grid">${recentQuestions
-        .slice(0, 5)
+        .slice(0, 4)
         .map(
           (question) => `
             <article class="question-row card" ${catStyle(question.categoryId)}>
@@ -269,7 +281,7 @@ function renderHome(content, progress, recentQuestions, state, continueQuestion)
             </article>`
         )
         .join("")}</div>`
-    : emptyState("🕐", "Questions you open will show up here so you can jump back in fast.");
+    : emptyState("🕐", "Questions you open will show up here for quick revision.");
 
   return `
     <section class="hero-banner">
@@ -279,28 +291,101 @@ function renderHome(content, progress, recentQuestions, state, continueQuestion)
       <button class="hero-cta" type="button" ${continueTarget}>${continueLabel} →</button>
     </section>
 
+    <!-- Daily High-Yield Question Card -->
+    <article class="daily-challenge-card card" ${catStyle(dailyQuestion.categoryId)}>
+      <div class="daily-header">
+        <span class="daily-tag">⭐ Question of the Day</span>
+        <div class="badge-row">
+          ${categoryBadge(dailyQuestion)}
+          ${difficultyBadge(dailyQuestion.difficulty)}
+        </div>
+      </div>
+      <h4 class="daily-title">${escapeHtml(dailyQuestion.question)}</h4>
+      <p class="muted" style="margin:0;font-size:0.84rem;line-height:1.45;">
+        ${escapeHtml(dailyQuestion.answerPoints[0] || "Master this core senior concept today.")}
+      </p>
+      <div class="daily-actions">
+        <button class="tiny-btn primary" type="button" data-open-question="${dailyQuestion.id}">Study full answer & code →</button>
+        <button class="tiny-btn success" type="button" data-toggle-complete="${dailyQuestion.id}">
+          ${isDailyDone ? "✓ Done" : "Mark done"}
+        </button>
+        <button class="tiny-btn" type="button" data-toggle-bookmark="${dailyQuestion.id}">
+          ${isDailySaved ? "★ Saved" : "☆ Save"}
+        </button>
+      </div>
+    </article>
+
+    <!-- High-Impact Study Tracks -->
+    <div class="section-heading">
+      <h4>🎯 Quick Study Tracks</h4>
+      <button type="button" data-route-go="#/categories">All 19 Topics ›</button>
+    </div>
+    <div class="study-modes-grid">
+      <button class="mode-card" type="button" data-mode-filter="code">
+        <span class="mode-icon">💻</span>
+        <strong>Coding & Algorithms</strong>
+        <span>36 questions with runnable Python/FastAPI code</span>
+      </button>
+      <button class="mode-card" type="button" data-mode-filter="system-design">
+        <span class="mode-icon">🏗️</span>
+        <strong>System Design</strong>
+        <span>Enterprise RAG & Multi-Agent architecture</span>
+      </button>
+      <button class="mode-card" type="button" data-mode-filter="scenario">
+        <span class="mode-icon">🎯</span>
+        <strong>Production Scenarios</strong>
+        <span>Debugging 60% RAG accuracy & cost spikes</span>
+      </button>
+      <button class="mode-card" type="button" data-mode-filter="agentic">
+        <span class="mode-icon">🧠</span>
+        <strong>Agentic AI & MCP</strong>
+        <span>ReAct, supervisors, and tool calling</span>
+      </button>
+    </div>
+
+    <!-- Progress Stats -->
     <div class="stats-row">
       <div class="ring-card card">${progressRing(progress.percent)}</div>
       <div class="stat-card card">
         <span class="stat-icon">✅</span>
         <span class="stat-value">${progress.done}<span class="muted" style="font-size:0.8rem;font-weight:600;">/${progress.total}</span></span>
-        <span class="stat-label">Questions done</span>
+        <span class="stat-label">Completed questions</span>
       </div>
       <div class="stat-card card">
         <span class="stat-icon">⭐</span>
         <span class="stat-value">${bookmarkCount}</span>
-        <span class="stat-label">Bookmarked</span>
+        <span class="stat-label">Saved for revision</span>
       </div>
     </div>
 
+    <!-- Fast Topic Jumper -->
     <div class="section-heading">
-      <h4>Start with the essentials</h4>
-      <button type="button" data-route-go="#/categories">All topics ›</button>
+      <h4>⚡ Priority Topics</h4>
     </div>
     <div class="quick-topics">${quickChips}</div>
 
+    <!-- Architecture & Interview Cheat Sheets -->
     <div class="section-heading">
-      <h4>Recently viewed</h4>
+      <h4>💡 Senior Cheat Sheets</h4>
+    </div>
+    <div class="cheat-sheet-grid">
+      <div class="cheat-card card" style="--primary: #c026d3;">
+        <h5><span class="emoji">📚</span> RAG Formula: Bi-Encoder + Cross-Encoder</h5>
+        <p>Retrieve top 30 candidates with <code>Hybrid Search (BM25 + Dense)</code>, then pass through a <code>Cross-Encoder Reranker</code> to select top 3-5 high-signal chunks for synthesis.</p>
+      </div>
+      <div class="cheat-card card" style="--primary: #4f46e5;">
+        <h5><span class="emoji">🧠</span> Agentic Safeguard Triad</h5>
+        <p>Always enforce <code>max_iterations = 10</code>, duplicate call signature hashing to prevent infinite loops, and <code>Human-in-the-Loop</code> checkpoints for state-mutating tools.</p>
+      </div>
+      <div class="cheat-card card" style="--primary: #0d9488;">
+        <h5><span class="emoji">⚡</span> TTFT Optimization for FastAPI</h5>
+        <p>Use <code>StreamingResponse(media_type="text/event-stream")</code> for immediate token streaming (<800ms Time-to-First-Token) and offload long batch jobs to Celery/SQS.</p>
+      </div>
+    </div>
+
+    <!-- Recently Viewed -->
+    <div class="section-heading">
+      <h4>🕐 Recently Viewed</h4>
     </div>
     ${recent}
 
