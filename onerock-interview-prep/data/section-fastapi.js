@@ -131,6 +131,271 @@ export const FASTAPI_ANSWERS = {
 };
 
 export const FASTAPI_CODE = {
+  "Why would you choose FastAPI over Flask?": {
+    language: "python",
+    code: `from fastapi import FastAPI
+from pydantic import BaseModel, Field
+
+app = FastAPI(title="GenAI Inference Service")
+
+class ChatRequest(BaseModel):
+    prompt: str = Field(min_length=3, max_length=1000)
+    temperature: float = Field(default=0.7, ge=0.0, le=1.0)
+
+# Native async, automated Pydantic validation & auto-generated Swagger UI (/docs)
+@app.post("/chat")
+async def chat_completion(req: ChatRequest):
+    # Asynchronous non-blocking call to LLM
+    return {"status": "success", "prompt_echo": req.prompt}`
+  },
+  "How does FastAPI handle asynchronous requests?": {
+    language: "python",
+    code: `import asyncio
+import time
+from fastapi import FastAPI
+
+app = FastAPI()
+
+# 1. 'async def' runs directly on the main single-threaded event loop
+@app.get("/async-io")
+async def async_endpoint():
+    await asyncio.sleep(1.0)  # Non-blocking; other requests are processed
+    return {"message": "Non-blocking async I/O completed"}
+
+# 2. Plain 'def' runs automatically on an internal threadpool worker
+@app.get("/sync-cpu")
+def sync_endpoint():
+    time.sleep(1.0)  # Blocking, but offloaded to threadpool by FastAPI
+    return {"message": "Threadpool worker completed"}`
+  },
+  "What is Pydantic?": {
+    language: "python",
+    code: `from pydantic import BaseModel, Field, field_validator
+from datetime import datetime
+
+class DocumentChunk(BaseModel):
+    chunk_id: str
+    token_count: int = Field(gt=0, le=2048)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    @field_validator("chunk_id")
+    @classmethod
+    def validate_chunk_prefix(cls, v: str) -> str:
+        if not v.startswith("chk_"):
+            raise ValueError("chunk_id must start with 'chk_'")
+        return v
+
+# Runtime validation & schema generation:
+chunk = DocumentChunk(chunk_id="chk_101", token_count=450)
+print(chunk.model_dump_json())`
+  },
+  "Explain request validation in FastAPI.": {
+    language: "python",
+    code: `from fastapi import FastAPI, Query, Path, Body
+from pydantic import BaseModel
+
+app = FastAPI()
+
+class QueryFilter(BaseModel):
+    top_k: int = 5
+    threshold: float = 0.8
+
+@app.post("/search/{collection_name}")
+async def validate_query(
+    collection_name: str = Path(..., regex="^[a-zA-Z0-9_-]+$"),
+    q: str = Query(..., min_length=2, max_length=100),
+    filters: QueryFilter = Body(...)
+):
+    # FastAPI automatically validates collection regex, query length, and JSON body
+    # Malformed requests immediately return 422 Unprocessable Entity
+    return {"collection": collection_name, "query": q, "top_k": filters.top_k}`
+  },
+  "What is dependency injection in FastAPI?": {
+    language: "python",
+    code: `from typing import AsyncGenerator
+from fastapi import FastAPI, Depends
+
+app = FastAPI()
+
+# Dependency with yield provides automatic teardown/cleanup
+async def get_db_session() -> AsyncGenerator[str, None]:
+    session = "Connected DB Session"
+    print("Opening DB Session...")
+    try:
+        yield session
+    finally:
+        print("Closing DB Session...")
+
+@app.get("/items")
+async def list_items(db: str = Depends(get_db_session)):
+    return {"db_status": db}`
+  },
+  "JWT vs OAuth2?": {
+    language: "python",
+    code: `# OAuth2 defines the architecture; JWT is the signed token format
+# Standard JWT structure: Header.Payload.Signature
+# Base64 encoded payload example:
+# {
+#   "sub": "user_12345",
+#   "name": "Jane Doe",
+#   "roles": ["developer", "admin"],
+#   "exp": 1756713600
+# }
+import jwt
+
+SECRET = "super-secret"
+token = jwt.encode({"sub": "user_1", "roles": ["admin"]}, SECRET, algorithm="HS256")
+payload = jwt.decode(token, SECRET, algorithms=["HS256"])
+print(payload["roles"])  # ['admin']`
+  },
+  "How would you implement API versioning?": {
+    language: "python",
+    code: `from fastapi import FastAPI, APIRouter
+
+app = FastAPI()
+
+# Version 1 Router
+v1_router = APIRouter(prefix="/v1", tags=["v1"])
+@v1_router.get("/generate")
+async def generate_v1():
+    return {"version": "v1", "format": "plain_text"}
+
+# Version 2 Router
+v2_router = APIRouter(prefix="/v2", tags=["v2"])
+@v2_router.get("/generate")
+async def generate_v2():
+    return {"version": "v2", "format": "structured_json_with_citations"}
+
+app.include_router(v1_router)
+app.include_router(v2_router)`
+  },
+  "How do you handle CORS?": {
+    language: "python",
+    code: `from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI()
+
+# Strict production CORS whitelist
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://app.mycompany.com",
+        "https://staging.mycompany.com"
+    ],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+)`
+  },
+  "How would you implement rate limiting?": {
+    language: "python",
+    code: `import time
+from fastapi import FastAPI, Request, HTTPException, status
+import redis.asyncio as redis
+
+app = FastAPI()
+r = redis.Redis(host="localhost", port=6379, db=0)
+
+async def rate_limiter(request: Request, max_requests: int = 10, window_secs: int = 60):
+    client_ip = request.client.host
+    key = f"rate:{client_ip}:{int(time.time() // window_secs)}"
+    current = await r.incr(key)
+    if current == 1:
+        await r.expire(key, window_secs)
+    if current > max_requests:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Rate limit exceeded. Please try again later.",
+            headers={"Retry-After": str(window_secs)}
+        )`
+  },
+  "REST vs WebSocket vs Server-Sent Events?": {
+    language: "python",
+    code: `from fastapi import FastAPI, WebSocket
+from fastapi.responses import StreamingResponse
+
+app = FastAPI()
+
+# 1. REST (Single request/response)
+@app.get("/rest")
+def rest_get(): return {"message": "Single payload"}
+
+# 2. Server-Sent Events (SSE) (Unidirectional stream - ideal for LLMs)
+@app.get("/sse")
+async def sse_stream():
+    async def event_generator():
+        for word in ["Generating", "tokens", "in", "realtime..."]:
+            yield f"data: {word}\\n\\n"
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+# 3. WebSocket (Full duplex bi-directional)
+@app.websocket("/ws")
+async def websocket_endpoint(ws: WebSocket):
+    await ws.accept()
+    while True:
+        data = await ws.receive_text()
+        await ws.send_text(f"Echo: {data}")`
+  },
+  "How do you perform health checks?": {
+    language: "python",
+    code: `from fastapi import FastAPI, status
+from fastapi.responses import JSONResponse
+
+app = FastAPI()
+
+@app.get("/health/live", status_code=status.HTTP_200_OK)
+async def liveness_probe():
+    # Shallow check: process is running and event loop is alive
+    return {"status": "alive"}
+
+@app.get("/health/ready")
+async def readiness_probe():
+    # Deep check: verify critical dependencies
+    checks = {"database": True, "vector_db": True, "redis": True}
+    if not all(checks.values()):
+        return JSONResponse(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, content={"status": "degraded", "checks": checks})
+    return {"status": "ready", "checks": checks}`
+  },
+  "Liveness vs readiness probes?": {
+    language: "yaml",
+    code: `# Kubernetes Pod Configuration
+spec:
+  containers:
+  - name: fastapi-api
+    image: genai-api:latest
+    livenessProbe:
+      httpGet:
+        path: /health/live
+        port: 8000
+      initialDelaySeconds: 3
+      periodSeconds: 10
+      failureThreshold: 3  # Restarts pod if failing 3 times
+    readinessProbe:
+      httpGet:
+        path: /health/ready
+        port: 8000
+      initialDelaySeconds: 5
+      periodSeconds: 5
+      failureThreshold: 2  # Drops pod from load balancer endpoints if failing`
+  },
+  "How would you deploy FastAPI using Docker and Kubernetes?": {
+    language: "dockerfile",
+    code: `# Multi-stage production Dockerfile for FastAPI
+FROM python:3.12-slim AS builder
+WORKDIR /app
+COPY requirements.txt .
+RUN python -m venv /venv && /venv/bin/pip install --no-cache-dir -r requirements.txt
+
+FROM python:3.12-slim AS runner
+WORKDIR /app
+COPY --from=builder /venv /venv
+COPY src/ ./src
+ENV PATH="/venv/bin:$PATH"
+USER 10001
+EXPOSE 8000
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]`
+  },
   "How do you implement authentication in FastAPI?": {
     language: "python",
     code: `from datetime import datetime, timedelta, timezone

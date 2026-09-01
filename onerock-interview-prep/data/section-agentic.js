@@ -236,6 +236,163 @@ export const AGENTIC_ANSWERS = {
 };
 
 export const AGENTIC_CODE = {
+  "What is Agentic AI?": {
+    language: "python",
+    code: `# Core Autonomous Agent Loop with Tool Calling & State Update
+class AgentState:
+    def __init__(self, objective: str):
+        self.objective = objective
+        self.history = [{"role": "user", "content": objective}]
+        self.steps_taken = 0
+        self.is_finished = False
+
+def run_agent_loop(state: AgentState, client, tools, max_steps: int = 5):
+    while not state.is_finished and state.steps_taken < max_steps:
+        state.steps_taken += 1
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=state.history,
+            tools=tools
+        )
+        msg = response.choices[0].message
+        state.history.append(msg)
+        
+        if not msg.tool_calls:
+            state.is_finished = True
+            return msg.content
+            
+        # Execute tool calls and record observations
+        for tc in msg.tool_calls:
+            result = execute_sandboxed_tool(tc.function.name, tc.function.arguments)
+            state.history.append({"role": "tool", "tool_call_id": tc.id, "content": str(result)})`
+  },
+  "RAG vs Agentic RAG?": {
+    language: "python",
+    code: `# Agentic RAG: Dynamic query decomposition, multi-source routing and self-correction
+async def agentic_rag_pipeline(user_query: str, agent):
+    # Step 1: Query evaluation & decomposition
+    plan = await agent.plan_search_strategy(user_query)
+    
+    # Step 2: Multi-source search (Vector DB + SQL + Web)
+    retrieved_chunks = []
+    if plan.needs_internal_docs:
+        retrieved_chunks.extend(await vector_db.search(plan.doc_subquery))
+    if plan.needs_database_metrics:
+        retrieved_chunks.append(await sql_tool.run(plan.sql_query))
+        
+    # Step 3: Self-correction / Reflection
+    is_sufficient = await agent.evaluate_context_sufficiency(user_query, retrieved_chunks)
+    if not is_sufficient:
+        # Reformulate query and re-retrieve
+        retrieved_chunks.extend(await vector_db.search(plan.fallback_subquery))
+        
+    return await agent.synthesize_grounded_answer(user_query, retrieved_chunks)`
+  },
+  "What is tool calling?": {
+    language: "python",
+    code: `import json
+from pydantic import BaseModel, Field
+
+class WeatherLookupArgs(BaseModel):
+    city: str = Field(description="City name, e.g. San Francisco")
+    unit: str = Field(default="celsius", description="celsius or fahrenheit")
+
+# Convert Pydantic model directly to OpenAI Tool JSON Schema
+weather_tool = {
+    "type": "function",
+    "function": {
+        "name": "lookup_weather",
+        "description": "Fetch current live weather conditions.",
+        "parameters": WeatherLookupArgs.model_json_schema()
+    }
+}
+
+# The host intercepts the model's call and executes verified code
+def handle_tool_call(tool_name: str, raw_arguments_json: str):
+    if tool_name == "lookup_weather":
+        args = WeatherLookupArgs.model_validate_json(raw_arguments_json)
+        return {"temperature": 22.5, "unit": args.unit, "city": args.city}`
+  },
+  "What is state management?": {
+    language: "python",
+    code: `from typing import TypedDict, Annotated
+import operator
+
+# LangGraph Typed State Schema with reducer operators
+class AgentGraphState(TypedDict):
+    input_query: str
+    plan: list[str]
+    tool_observations: Annotated[list[str], operator.add]  # Appends new items
+    current_step: int
+    is_approved: bool
+    final_output: str
+
+def plan_node(state: AgentGraphState) -> dict:
+    # State is immutable; node returns dict of updated fields
+    return {"plan": ["search_docs", "verify_facts"], "current_step": 1}`
+  },
+  "How do you prevent an agent from entering an infinite loop?": {
+    language: "python",
+    code: `class LoopGuard:
+    def __init__(self, max_iterations: int = 6):
+        self.max_iterations = max_iterations
+        self.call_history = []  # tracks (tool_name, hash_of_args)
+
+    def check_and_record(self, tool_name: str, args_str: str) -> bool:
+        call_signature = (tool_name, args_str.strip())
+        
+        # 1. Check for immediate duplicate repetition
+        if self.call_history.count(call_signature) >= 2:
+            raise RuntimeError(f"Loop detected! Duplicate tool call: {tool_name}")
+            
+        # 2. Check total iteration ceiling
+        if len(self.call_history) >= self.max_iterations:
+            raise TimeoutError("Agent exceeded maximum allowed step budget.")
+            
+        self.call_history.append(call_signature)
+        return True`
+  },
+  "How do you implement human-in-the-loop?": {
+    language: "python",
+    code: `# LangGraph / Async Human-in-the-Loop Interruption Pattern
+class StateCheckpoint:
+    def __init__(self):
+        self.checkpoints = {}
+
+async def execute_agent_with_hitl(task_id: str, state: dict, checkpointer: StateCheckpoint):
+    if state.get("requires_action") == "TRANSFER_FUNDS" and not state.get("human_approved"):
+        # 1. Pause execution & persist state
+        state["status"] = "PENDING_APPROVAL"
+        checkpointer.checkpoints[task_id] = state
+        send_slack_approval_notification(task_id, state["action_details"])
+        return {"status": "PAUSED", "task_id": task_id}
+
+    # Resumed after human clicks 'Approve'
+    return await execute_action_node(state)`
+  },
+  "How would you build a multi-agent system?": {
+    language: "python",
+    code: `# Multi-Agent Supervisor Pattern in Python
+from pydantic import BaseModel
+from typing import Literal
+
+class SupervisorDecision(BaseModel):
+    next_agent: Literal["ResearchAgent", "SQLDataAgent", "ReviewerAgent", "FINISH"]
+    instructions_for_agent: str
+
+def supervisor_router(state: dict, client) -> str:
+    system_prompt = (
+        "You are the supervisor of a multi-agent team. Given the task and worker progress, "
+        "select the NEXT specialist agent to act, or FINISH if the goal is satisfied."
+    )
+    decision = client.beta.chat.completions.parse(
+        model="gpt-4o",
+        messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": str(state)}],
+        response_format=SupervisorDecision
+    ).choices[0].message.parsed
+    
+    return decision.next_agent`
+  },
   "What is ReAct?": {
     language: "python",
     code: `import json

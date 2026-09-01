@@ -152,6 +152,197 @@ export const GENAI_ANSWERS = {
 };
 
 export const GENAI_CODE = {
+  "How does a Transformer work?": {
+    language: "python",
+    code: `import torch
+import torch.nn as nn
+import math
+
+class ScaledDotProductAttention(nn.Module):
+    def __init__(self, d_k: int):
+        super().__init__()
+        self.d_k = d_k
+
+    def forward(self, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, mask: torch.Tensor = None):
+        # Attention(Q, K, V) = softmax(Q * K^T / sqrt(d_k)) * V
+        scores = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(self.d_k)
+        if mask is not None:
+            scores = scores.masked_fill(mask == 0, -1e9)
+        attn_weights = torch.softmax(scores, dim=-1)
+        return torch.matmul(attn_weights, v), attn_weights`
+  },
+  "Explain attention mechanism.": {
+    language: "python",
+    code: `import numpy as np
+
+def simple_self_attention(Q: np.ndarray, K: np.ndarray, V: np.ndarray) -> np.ndarray:
+    d_k = Q.shape[-1]
+    # 1. Compute raw affinity scores
+    scores = np.dot(Q, K.T) / np.sqrt(d_k)
+    # 2. Softmax normalization across keys
+    exp_scores = np.exp(scores - np.max(scores, axis=-1, keepdims=True))
+    weights = exp_scores / np.sum(exp_scores, axis=-1, keepdims=True)
+    # 3. Weighted aggregation of values
+    return np.dot(weights, V)`
+  },
+  "What are tokens?": {
+    language: "python",
+    code: `import tiktoken
+
+# Inspect how tokenization splits text into sub-words
+enc = tiktoken.encoding_for_model("gpt-4o")
+text = "Generative AI Engineering is transformative!"
+
+token_ids = enc.encode(text)
+print(f"Token IDs ({len(token_ids)} tokens): {token_ids}")
+# Decode each individual token to observe sub-word boundaries
+for tid in token_ids:
+    print(f"ID {tid} -> '{enc.decode([tid])}'")`
+  },
+  "What are temperature and top-p?": {
+    language: "python",
+    code: `import numpy as np
+
+def apply_temperature_and_top_p(logits: np.ndarray, temperature: float = 0.7, top_p: float = 0.9) -> int:
+    # 1. Temperature scaling
+    scaled_logits = logits / max(temperature, 1e-5)
+    probs = np.exp(scaled_logits) / np.sum(np.exp(scaled_logits))
+
+    # 2. Top-P (Nucleus) filtering
+    sorted_indices = np.argsort(probs)[::-1]
+    sorted_probs = probs[sorted_indices]
+    cumulative_probs = np.cumsum(sorted_probs)
+
+    # Cut off tokens exceeding cumulative probability top_p
+    cutoff = cumulative_probs > top_p
+    if np.any(cutoff):
+        cutoff[0] = False  # Keep at least the top token
+        sorted_probs[cutoff] = 0.0
+        sorted_probs /= np.sum(sorted_probs)
+
+    return np.random.choice(sorted_indices, p=sorted_probs)`
+  },
+  "How do you reduce hallucinations?": {
+    language: "python",
+    code: `from openai import OpenAI
+
+client = OpenAI()
+
+def grounded_completion(user_query: str, retrieved_context: str) -> str:
+    system_prompt = (
+        "You are a strict, grounded AI assistant. Answer the user prompt using ONLY the provided verified context. "
+        "Rules:\\n"
+        "1. If the exact answer cannot be deduced from context, respond: 'I do not have enough verified information.'\\n"
+        "2. Do not use prior training data or extrapolate assumptions.\\n"
+        "3. Cite the exact sentence you used."
+    )
+    
+    resp = client.chat.completions.create(
+        model="gpt-4o",
+        temperature=0.0,  # Zero temperature for deterministic adherence
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Context:\\n{retrieved_context}\\n\\nQuestion: {user_query}"}
+        ]
+    )
+    return resp.choices[0].message.content`
+  },
+  "What are embeddings?": {
+    language: "python",
+    code: `from openai import OpenAI
+
+client = OpenAI()
+
+def get_text_embedding(text: str, model: str = "text-embedding-3-small") -> list[float]:
+    # Returns a 1536-dimensional dense float vector
+    resp = client.embeddings.create(input=text, model=model)
+    return resp.data[0].embedding
+
+vec1 = get_text_embedding("Kubernetes container orchestration")
+vec2 = get_text_embedding("Docker container management")
+print(f"Embedding length: {len(vec1)} dimensions. Sample: {vec1[:3]}...")`
+  },
+  "What is hybrid search?": {
+    language: "python",
+    code: `def reciprocal_rank_fusion(dense_ranks: dict[str, int], sparse_ranks: dict[str, int], k: int = 60) -> list[tuple[str, float]]:
+    """
+    Combines BM25 sparse keyword rankings with dense vector rankings using RRF.
+    RRF Score = sum( 1 / (k + rank) )
+    """
+    rrf_scores = {}
+    all_doc_ids = set(dense_ranks.keys()) | set(sparse_ranks.keys())
+    
+    for doc_id in all_doc_ids:
+        score = 0.0
+        if doc_id in dense_ranks:
+            score += 1.0 / (k + dense_ranks[doc_id])
+        if doc_id in sparse_ranks:
+            score += 1.0 / (k + sparse_ranks[doc_id])
+        rrf_scores[doc_id] = score
+        
+    return sorted(rrf_scores.items(), key=lambda x: x[1], reverse=True)`
+  },
+  "What is reranking?": {
+    language: "python",
+    code: `# Cross-Encoder Reranking using HuggingFace / Cohere
+# Unlike Bi-Encoders which embed query/doc separately, Cross-Encoders attend over both jointly.
+from sentence_transformers import CrossEncoder
+
+reranker = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+
+query = "How do I secure an API?"
+candidate_docs = [
+    "FastAPI allows CORS and OAuth2 password bearer tokens.",
+    "Baking chocolate cookies requires flour and sugar.",
+    "API gateways provide rate limiting, WAF and TLS encryption."
+]
+
+# Joint scoring across (query, document) pairs
+scores = reranker.predict([(query, doc) for doc in candidate_docs])
+ranked = sorted(zip(candidate_docs, scores), key=lambda x: x[1], reverse=True)
+for doc, score in ranked:
+    print(f"Score: {score:.4f} | Doc: {doc}")`
+  },
+  "What is an LLM gateway?": {
+    language: "python",
+    code: `# LiteLLM Proxy / Gateway pattern in Python
+import litellm
+
+# Unified completion interface with automated routing, fallback and cost tracking
+def gateway_call(prompt: str, model_preference: str = "fast") -> str:
+    model_name = "gpt-4o-mini" if model_preference == "fast" else "claude-3-5-sonnet-20241022"
+    fallbacks = ["azure/gpt-4o-mini", "bedrock/anthropic.claude-3-haiku-20240307-v1:0"]
+
+    response = litellm.completion(
+        model=model_name,
+        messages=[{"role": "user", "content": prompt}],
+        fallbacks=fallbacks,
+        timeout=10.0,
+    )
+    return response.choices[0].message.content`
+  },
+  "How do you evaluate an LLM application?": {
+    language: "python",
+    code: `# Synthetic LLM-as-a-Judge Evaluation Script
+from openai import OpenAI
+from pydantic import BaseModel, Field
+
+client = OpenAI()
+
+class EvaluationScore(BaseModel):
+    faithfulness_score: int = Field(ge=1, le=5, description="1-5 rating on whether answer is grounded strictly in context")
+    relevance_score: int = Field(ge=1, le=5, description="1-5 rating on how directly answer resolves query")
+    reasoning: str
+
+def evaluate_rag_output(query: str, context: str, answer: str) -> EvaluationScore:
+    eval_prompt = f"Evaluate the RAG answer given Context and Query.\\nContext: {context}\\nQuery: {query}\\nAnswer: {answer}"
+    completion = client.beta.chat.completions.parse(
+        model="gpt-4o",
+        messages=[{"role": "system", "content": "You are an impartial evaluator."}, {"role": "user", "content": eval_prompt}],
+        response_format=EvaluationScore
+    )
+    return completion.choices[0].message.parsed`
+  },
   "What is cosine similarity?": {
     language: "python",
     code: `import numpy as np

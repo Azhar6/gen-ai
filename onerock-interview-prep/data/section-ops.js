@@ -184,6 +184,74 @@ export const OPS_ANSWERS = {
 };
 
 export const OPS_CODE = {
+  "Multi-stage builds?": {
+    language: "dockerfile",
+    code: `# Multi-stage production Dockerfile
+FROM python:3.12-slim AS builder
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends gcc g++ && rm -rf /var/lib/apt/lists/*
+COPY requirements.txt .
+RUN python -m venv /venv && /venv/bin/pip install --no-cache-dir -r requirements.txt
+
+FROM python:3.12-slim AS runner
+WORKDIR /app
+# Copy only the compiled virtualenv; exclude compilers
+COPY --from=builder /venv /venv
+COPY src/ ./src
+ENV PATH="/venv/bin:$PATH"
+USER 10001
+EXPOSE 8000
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]`
+  },
+  "How do you track token consumption?": {
+    language: "python",
+    code: `from fastapi import Request
+import logging
+
+logger = logging.getLogger("telemetry")
+
+def record_token_usage(endpoint: str, tenant_id: str, model: str, usage_obj):
+    # Logged in structured format for scraping by CloudWatch / Datadog
+    logger.info("token_usage", extra={
+        "tenant_id": tenant_id,
+        "endpoint": endpoint,
+        "model": model,
+        "prompt_tokens": usage_obj.prompt_tokens,
+        "completion_tokens": usage_obj.completion_tokens,
+        "total_tokens": usage_obj.total_tokens,
+        # Est. cost calculation for GPT-4o ($2.50 / $10.00 per 1M tokens)
+        "estimated_cost_usd": (usage_obj.prompt_tokens * 2.5e-6) + (usage_obj.completion_tokens * 1e-5)
+    })`
+  },
+  "How do you trace an agent?": {
+    language: "python",
+    code: `# OpenTelemetry Distributed Tracing for Agentic Nodes
+from opentelemetry import trace
+
+tracer = trace.get_tracer("agent.orchestrator")
+
+async def run_agent_step(step_name: str, step_fn, input_data: dict):
+    with tracer.start_as_current_span(f"agent_node:{step_name}") as span:
+        span.set_attribute("agent.input", str(input_data))
+        result = await step_fn(input_data)
+        span.set_attribute("agent.output", str(result))
+        return result`
+  },
+  "What happens if OpenAI/Azure OpenAI/Bedrock is unavailable?": {
+    language: "python",
+    code: `import pybreaker
+import logging
+
+# Circuit breaker trips OPEN after 3 consecutive failures; stays open for 60s
+llm_breaker = pybreaker.CircuitBreaker(fail_max=3, reset_timeout=60)
+
+async def call_llm_with_breaker(prompt: str):
+    try:
+        return await llm_breaker.call(call_primary_openai, prompt)
+    except pybreaker.CircuitBreakerError:
+        logging.warning("Primary LLM circuit is OPEN! Rerouting to AWS Bedrock...")
+        return await call_fallback_bedrock(prompt)`
+  },
   "How would you deploy FastAPI using Docker and Kubernetes?": {
     language: "yaml",
     code: `apiVersion: apps/v1

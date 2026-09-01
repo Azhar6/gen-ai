@@ -133,6 +133,94 @@ export const RAG_ANSWERS = {
 };
 
 export const RAG_CODE = {
+  "How do you extract text from PDFs?": {
+    language: "python",
+    code: `import fitz  # PyMuPDF (High-performance text & layout extraction)
+
+def extract_pdf_structured(pdf_path: str) -> list[dict]:
+    doc = fitz.open(pdf_path)
+    pages_data = []
+    
+    for page_num in range(len(doc)):
+        page = doc[page_num]
+        # Extract text blocks with spatial coordinates and font metadata
+        blocks = page.get_text("blocks")
+        page_text = "\\n".join([b[4] for b in blocks if b[4].strip()])
+        
+        pages_data.append({
+            "page_number": page_num + 1,
+            "text": page_text,
+            "char_count": len(page_text)
+        })
+    return pages_data`
+  },
+  "How do you handle tables in PDFs?": {
+    language: "python",
+    code: `import pdfplumber
+
+def extract_tables_as_markdown(pdf_path: str) -> list[str]:
+    markdown_tables = []
+    with pdfplumber.open(pdf_path) as pdf:
+        for page_idx, page in enumerate(pdf.pages):
+            tables = page.extract_tables()
+            for t in tables:
+                if not t or len(t) < 2: continue
+                # Format as clean markdown table to preserve row/col semantic structure
+                header = " | ".join([str(cell or "").strip() for cell in t[0]])
+                separator = " | ".join(["---"] * len(t[0]))
+                rows = [" | ".join([str(cell or "").strip() for cell in row]) for row in t[1:]]
+                md_table = f"### Table (Page {page_idx+1})\\n| {header} |\\n| {separator} |\\n" + "\\n".join([f"| {r} |" for r in rows])
+                markdown_tables.append(md_table)
+    return markdown_tables`
+  },
+  "How do you preserve document metadata?": {
+    language: "python",
+    code: `# Vector DB Payload with Access Control (ACL) and Lineage Metadata
+chunk_payload = {
+    "id": "doc_102_chk_04",
+    "values": [0.0142, -0.0521, 0.0891],  # 1536-dim embedding vector
+    "metadata": {
+        "doc_id": "doc_102",
+        "file_name": "Q3_Financial_Report.pdf",
+        "page_number": 14,
+        "section_title": "Operating Expenses",
+        "tenant_id": "org_982",
+        "allowed_roles": ["finance_admin", "c_level"],
+        "is_confidential": True,
+        "chunk_text": "R&D expenditures increased by 14% to $4.2M..."
+    }
+}`
+  },
+  "What is HNSW?": {
+    language: "python",
+    code: `# Conceptual HNSW Multi-Layer Skip-List Graph Traversal
+# Upper layers: Sparse long-range highway links across vector clusters
+# Layer 0 (Bottom): Dense short-range neighbor connectivity for exact nearest match
+import numpy as np
+
+def l2_distance(v1: np.ndarray, v2: np.ndarray) -> float:
+    return float(np.linalg.norm(v1 - v2))
+
+# Vector DB engines (Qdrant, Pinecone, pgvector) use SIMD-accelerated C++ HNSW graphs
+# allowing O(log N) retrieval across millions of vectors in <5 milliseconds.`
+  },
+  "How do you evaluate RAG?": {
+    language: "python",
+    code: `# RAG Triad Evaluation using Ragas / Custom Evaluation Pipeline
+from ragas.metrics import faithfulness, answer_relevancy, context_precision
+from datasets import Dataset
+
+eval_data = {
+    "question": ["What was the Q3 revenue growth?"],
+    "contexts": [["Q3 revenue increased by 18% year-over-year reaching $12.4M."]],
+    "answer": ["The revenue grew by 18% in Q3."],
+    "ground_truth": ["Q3 revenue grew by 18%."]
+}
+
+# dataset = Dataset.from_dict(eval_data)
+# results = evaluate(dataset, metrics=[faithfulness, answer_relevancy, context_precision])
+# print(results) -> {'faithfulness': 1.0, 'answer_relevancy': 0.96}`
+  },
   "What is chunking?": {
     language: "python",
     code: `def recursive_character_chunking(text: str, chunk_size: int = 500, chunk_overlap: int = 50) -> list[str]:

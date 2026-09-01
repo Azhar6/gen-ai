@@ -233,6 +233,83 @@ export const CLOUD_ANSWERS = {
 };
 
 export const CLOUD_CODE = {
+  "How would you build RAG using AWS services?": {
+    language: "python",
+    code: `import boto3
+import json
+
+# Invoking Amazon Bedrock Claude 3.5 Sonnet with IAM authorization (No static API keys!)
+bedrock = boto3.client("bedrock-runtime", region_name="us-east-1")
+
+def query_bedrock_rag(prompt: str, context_chunks: list[str]) -> str:
+    body = {
+        "anthropic_version": "bedrock-2023-05-31",
+        "max_tokens": 1000,
+        "temperature": 0.0,
+        "messages": [
+            {
+                "role": "user",
+                "content": f"Context:\\n{'\\n\\n'.join(context_chunks)}\\n\\nQuestion: {prompt}"
+            }
+        ]
+    }
+    response = bedrock.invoke_model(
+        modelId="anthropic.claude-3-5-sonnet-20241022-v2:0",
+        contentType="application/json",
+        accept="application/json",
+        body=json.dumps(body)
+    )
+    result = json.loads(response["body"].read())
+    return result["content"][0]["text"]`
+  },
+  "How would you build RAG using Azure OpenAI + AI Search?": {
+    language: "python",
+    code: `from azure.identity import DefaultAzureCredential
+from azure.search.documents import SearchClient
+from azure.search.documents.models import VectorizedQuery
+from openai import AzureOpenAI
+import os
+
+# Passwordless authentication with Microsoft Entra ID Managed Identity
+credential = DefaultAzureCredential()
+
+search_client = SearchClient(
+    endpoint=os.getenv("AZURE_SEARCH_ENDPOINT"),
+    index_name="company-knowledge",
+    credential=credential
+)
+
+def search_azure_ai(query: str, query_vector: list[float], user_security_groups: list[str]):
+    vector_query = VectorizedQuery(vector=query_vector, k_nearest_neighbors=5, fields="vector_content")
+    # Security Trimming: filter by Entra ID security group IDs
+    security_filter = f"search.in(access_group_id, '{','.join(user_security_groups)}')"
+    
+    results = search_client.search(
+        search_text=query,
+        vector_queries=[vector_query],
+        filter=security_filter,
+        query_type="semantic",
+        semantic_configuration_name="my-semantic-config"
+    )
+    return [doc["content"] for doc in results]`
+  },
+  "How would you build RAG using Vertex AI?": {
+    language: "python",
+    code: `import vertexai
+from vertexai.generative_models import GenerativeModel
+import os
+
+vertexai.init(project=os.getenv("GCP_PROJECT"), location="us-central1")
+model = GenerativeModel("gemini-1.5-flash")
+
+def query_gemini_rag(prompt: str, retrieved_contexts: list[str]) -> str:
+    full_prompt = f"Grounded Context:\\n{'\\n'.join(retrieved_contexts)}\\n\\nUser Query: {prompt}"
+    response = model.generate_content(
+        full_prompt,
+        generation_config={"temperature": 0.0, "max_output_tokens": 800}
+    )
+    return response.text`
+  },
   "How would you design the same GenAI application to run on AWS, Azure and GCP?": {
     language: "python",
     code: `from typing import Protocol, AsyncIterator

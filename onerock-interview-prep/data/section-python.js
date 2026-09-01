@@ -195,6 +195,329 @@ export const PYTHON_ANSWERS = {
 };
 
 export const PYTHON_CODE = {
+  "What is the difference between a list, tuple, set, and dictionary?": {
+    language: "python",
+    code: `# List: Ordered, mutable, allows duplicates
+my_list = [1, 2, 2, "apple"]
+my_list.append(3)  # [1, 2, 2, 'apple', 3]
+
+# Tuple: Ordered, immutable, hashable (safe dict key)
+my_tuple = (1, 2, 2, "apple")
+point_map = {(0, 0): "origin", (1, 2): "target"}
+
+# Set: Unordered, unique elements, O(1) membership check
+my_set = {1, 2, 2, 3}  # {1, 2, 3}
+if 2 in my_set:  # Average O(1) time
+    print("Found in O(1)")
+
+# Dictionary: Key-value map, average O(1) lookup
+my_dict = {"user_id": 101, "role": "admin"}
+print(my_dict.get("role"))  # 'admin'`
+  },
+  "Explain mutable vs immutable objects in Python.": {
+    language: "python",
+    code: `# 1. Immutable objects (int, str, tuple): Reassigned, not changed in place
+x = 10
+print(id(x))
+x += 1
+print(id(x))  # Different memory address!
+
+# 2. Mutable objects (list, dict, set): Modified in-place
+lst = [1, 2]
+print(id(lst))
+lst.append(3)
+print(id(lst))  # Same memory address!
+
+# 3. The Dangerous Default Argument Trap:
+def bad_append(val, target=[]):  # Shared list across all calls!
+    target.append(val)
+    return target
+
+def good_append(val, target=None):  # Idiomatic pattern
+    if target is None:
+        target = []
+    target.append(val)
+    return target`
+  },
+  "What are *args and **kwargs?": {
+    language: "python",
+    code: `def flexible_api_caller(endpoint: str, *args, timeout: float = 5.0, **kwargs):
+    """
+    *args captures extra positional arguments as a tuple.
+    **kwargs captures extra keyword arguments as a dictionary.
+    """
+    print(f"Endpoint: {endpoint}")
+    print(f"Positional args: {args}")      # e.g. ('arg1', 'arg2')
+    print(f"Keyword kwargs: {kwargs}")      # e.g. {'retry': 3, 'auth': 'bearer'}
+    print(f"Timeout: {timeout}")
+
+# Unpacking callers:
+params = ("v1", "users")
+options = {"retry": 3, "auth": "bearer_token"}
+flexible_api_caller("/api", *params, timeout=10.0, **options)`
+  },
+  "Explain shallow copy vs deep copy.": {
+    language: "python",
+    code: `import copy
+
+original = {"model": "gpt-4o", "params": {"temperature": 0.7, "max_tokens": 1000}}
+
+# Shallow Copy: copies outer dict, but nested dict reference is SHARED
+shallow = copy.copy(original)
+shallow["params"]["temperature"] = 0.0
+print(original["params"]["temperature"])  # 0.0 (Original was mutated!)
+
+# Deep Copy: recursively clones all nested objects
+original["params"]["temperature"] = 0.7
+deep = copy.deepcopy(original)
+deep["params"]["temperature"] = 0.0
+print(original["params"]["temperature"])  # 0.7 (Original is safe and isolated)`
+  },
+  "What is the difference between an iterator and an iterable?": {
+    language: "python",
+    code: `# Iterable: implements __iter__()
+numbers = [1, 2, 3]  # Iterable
+
+# Iterator: stateful stream object implementing __iter__() and __next__()
+iterator = iter(numbers)  # calls numbers.__iter__()
+
+print(next(iterator))  # 1
+print(next(iterator))  # 2
+print(next(iterator))  # 3
+# next(iterator) -> raises StopIteration
+
+# Custom Iterator class:
+class CountDown:
+    def __init__(self, start):
+        self.count = start
+    def __iter__(self):
+        return self
+    def __next__(self):
+        if self.count <= 0:
+            raise StopIteration
+        self.count -= 1
+        return self.count + 1`
+  },
+  "Explain Python's GIL.": {
+    language: "python",
+    code: `import threading
+import time
+
+# CPU-bound task: GIL prevents multi-core parallel speedup
+def cpu_heavy(n):
+    count = 0
+    for _ in range(n):
+        count += 1
+    return count
+
+# I/O-bound task: GIL is released during socket/file I/O
+def io_heavy(url):
+    import urllib.request
+    with urllib.request.urlopen(url) as resp:
+        return resp.read()
+
+# Threads run concurrently for I/O, but sequentially for Python bytecodes
+threads = [threading.Thread(target=io_heavy, args=("https://python.org",)) for _ in range(5)]
+for t in threads: t.start()
+for t in threads: t.join()`
+  },
+  "When would you use multiprocessing vs multithreading?": {
+    language: "python",
+    code: `from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+import math
+
+def cpu_task(n):
+    return sum(math.sqrt(i) for i in range(n))
+
+def io_task(url):
+    import time; time.sleep(0.5); return f"Fetched {url}"
+
+# 1. Use ProcessPoolExecutor for CPU-bound computation (bypasses GIL)
+with ProcessPoolExecutor(max_workers=4) as executor:
+    results = list(executor.map(cpu_task, [10_000_000] * 4))
+
+# 2. Use ThreadPoolExecutor or asyncio for I/O-bound network waits
+with ThreadPoolExecutor(max_workers=10) as executor:
+    pages = list(executor.map(io_task, ["url1", "url2", "url3"]))`
+  },
+  "How does asyncio work?": {
+    language: "python",
+    code: `import asyncio
+import time
+
+async def fetch_llm_response(prompt: str, delay: float) -> str:
+    print(f"Starting request for: {prompt}")
+    await asyncio.sleep(delay)  # Yields execution back to event loop
+    print(f"Completed: {prompt}")
+    return f"Result for {prompt}"
+
+async def main():
+    start = time.perf_counter()
+    # Runs concurrently on single thread
+    results = await asyncio.gather(
+        fetch_llm_response("summarize", 1.0),
+        fetch_llm_response("extract", 1.0),
+        fetch_llm_response("translate", 1.0),
+    )
+    # Total time: ~1.0s (not 3.0s!)
+    print(f"All done in {time.perf_counter() - start:.2f}s: {results}")
+
+asyncio.run(main())`
+  },
+  "What is the difference between synchronous and asynchronous programming?": {
+    language: "python",
+    code: `import time
+import asyncio
+
+# Synchronous: Blocking sequential execution (Total: 3.0s)
+def sync_worker():
+    def fetch(): time.sleep(1.0)
+    start = time.perf_counter()
+    fetch(); fetch(); fetch()
+    print(f"Sync took: {time.perf_counter() - start:.2f}s")
+
+# Asynchronous: Non-blocking cooperative concurrency (Total: 1.0s)
+async def async_worker():
+    async def fetch(): await asyncio.sleep(1.0)
+    start = time.perf_counter()
+    await asyncio.gather(fetch(), fetch(), fetch())
+    print(f"Async took: {time.perf_counter() - start:.2f}s")`
+  },
+  "Explain async and await.": {
+    language: "python",
+    code: `import asyncio
+
+async def query_vector_db(query: str) -> list[str]:
+    # 'async def' defines a coroutine function
+    print(f"Embedding query: {query}")
+    await asyncio.sleep(0.2)  # 'await' pauses here until I/O completes
+    return ["chunk_1", "chunk_2"]
+
+async def main():
+    # Calling a coroutine returns a coroutine object
+    coro = query_vector_db("RAG design")
+    # 'await' executes it and retrieves the value
+    chunks = await coro
+    print(f"Retrieved: {chunks}")
+
+asyncio.run(main())`
+  },
+  "How would you handle exceptions in a large Python application?": {
+    language: "python",
+    code: `class AppException(Exception):
+    """Base application domain exception."""
+    def __init__(self, message: str, code: str = "INTERNAL_ERROR"):
+        super().__init__(message)
+        self.code = code
+
+class LLMProviderTimeout(AppException):
+    def __init__(self, provider: str):
+        super().__init__(f"Provider {provider} timed out after 10s", code="LLM_TIMEOUT")
+
+def call_upstream_service():
+    try:
+        raise TimeoutError("Socket timeout")
+    except TimeoutError as err:
+        # Exception chaining preserves root cause stack trace
+        raise LLMProviderTimeout(provider="OpenAI") from err
+
+try:
+    call_upstream_service()
+except AppException as e:
+    print(f"Caught clean domain error: {e.code} - {e}")`
+  },
+  "How would you structure a production Python project?": {
+    language: "bash",
+    code: `my_genai_service/
+├── pyproject.toml              # Dependencies & build config (Poetry/UV/Hatch)
+├── Dockerfile                  # Multi-stage container build
+├── .env.example                # Example environment variable template
+├── src/
+│   ├── main.py                 # FastAPI application instantiation & lifecycle
+│   ├── core/
+│   │   ├── config.py           # Pydantic BaseSettings config
+│   │   ├── logging.py          # Structured JSON logging
+│   │   └── security.py         # JWT tokens & encryption
+│   ├── api/
+│   │   └── v1/
+│   │       ├── router.py       # Versioned router aggregator
+│   │       └── endpoints/      # Route handlers (/chat, /documents)
+│   ├── services/               # Core business & agent orchestration logic
+│   ├── repositories/           # Vector DB, SQL DB, S3 clients
+│   └── models/                 # Pydantic request/response schemas
+└── tests/
+    ├── unit/                   # Fast mocked unit tests
+    └── integration/            # E2E tests with Testcontainers`
+  },
+  "How do you manage configuration and secrets?": {
+    language: "python",
+    code: `from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, SecretStr
+
+class AppSettings(BaseSettings):
+    app_env: str = Field(default="production", alias="APP_ENV")
+    database_url: str = Field(alias="DATABASE_URL")
+    openai_api_key: SecretStr = Field(alias="OPENAI_API_KEY")
+    max_connections: int = Field(default=20, gt=0)
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
+
+# Instantiate single typed configuration instance
+config = AppSettings()
+# Access safe values: config.database_url
+# Access secret value securely: config.openai_api_key.get_secret_value()`
+  },
+  "How do you optimize a slow Python API?": {
+    language: "python",
+    code: `import asyncio
+import asyncpg
+import redis.asyncio as redis
+
+# 1. Connection pooling for Database
+async def create_db_pool():
+    return await asyncpg.create_pool("postgresql://user:pass@localhost/db", min_size=5, max_size=20)
+
+# 2. Redis Caching for expensive idempotent computations
+async def get_user_profile(user_id: str, r_client: redis.Redis, db_pool: asyncpg.Pool):
+    cache_key = f"user:{user_id}"
+    cached = await r_client.get(cache_key)
+    if cached:
+        return cached.decode("utf-8")
+
+    async with db_pool.acquire() as conn:
+        profile = await conn.fetchval("SELECT profile_json FROM users WHERE id = $1", user_id)
+        await r_client.setex(cache_key, 300, profile)  # 5 min TTL
+        return profile`
+  },
+  "How do you profile Python code?": {
+    language: "python",
+    code: `import cProfile
+import pstats
+import io
+
+def heavy_computation():
+    return [i ** 2 for i in range(1_000_000)]
+
+# Deterministic function call profiling
+profiler = cProfile.Profile()
+profiler.enable()
+
+heavy_computation()
+
+profiler.disable()
+s = io.StringIO()
+ps = pstats.Stats(profiler, stream=s).sort_stats("cumulative")
+ps.print_stats(10)  # Print top 10 most time-consuming calls
+print(s.getvalue())
+
+# Production sampling profile via terminal:
+# py-spy top --pid 12345
+# py-spy record -o profile.svg --pid 12345`
+  },
   "What are decorators? Give a real-world use case.": {
     language: "python",
     code: `import functools

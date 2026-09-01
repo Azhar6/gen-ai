@@ -157,6 +157,33 @@ export const SYSTEM_CUSTOMER_ANSWERS = {
 };
 
 export const SYSTEM_CUSTOMER_CODE = {
+  "Design an agent that can query SQL databases and documents.": {
+    language: "python",
+    code: `from typing import Literal
+from pydantic import BaseModel, Field
+
+# Dual-Engine Router Pattern
+class IntentClassification(BaseModel):
+    query_type: Literal["SQL_ANALYTICS", "DOCUMENTS_RAG", "HYBRID"]
+    sql_query: str | None = Field(default=None, description="Generated SELECT query if needed")
+    doc_search_term: str | None = Field(default=None, description="Search terms for RAG")
+
+async def dual_engine_router(user_prompt: str, client, sql_runner, vector_search):
+    classification = client.beta.chat.completions.parse(
+        model="gpt-4o",
+        messages=[{"role": "system", "content": "Classify if query needs SQL, Documents, or Both."},
+                  {"role": "user", "content": user_prompt}],
+        response_format=IntentClassification
+    ).choices[0].message.parsed
+    
+    results = {}
+    if classification.query_type in ["SQL_ANALYTICS", "HYBRID"] and classification.sql_query:
+        results["sql_data"] = await sql_runner.execute(classification.sql_query)
+    if classification.query_type in ["DOCUMENTS_RAG", "HYBRID"] and classification.doc_search_term:
+        results["rag_docs"] = await vector_search.query(classification.doc_search_term)
+        
+    return results`
+  },
   "Design a production LLM gateway supporting multiple models/providers.": {
     language: "python",
     code: `from fastapi import FastAPI, Header, HTTPException
