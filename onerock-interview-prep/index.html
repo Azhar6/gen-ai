@@ -3,15 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#1b2420" />
-  <meta name="color-scheme" content="light" />
+  <meta name="theme-color" content="#4f46e5" />
+  <meta name="description" content="Mobile-first GenAI / Agentic AI Engineer interview preparation app." />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Interview Prep" />
-  <meta name="application-name" content="Interview Prep" />
-  <meta name="description" content="AI Engineer questions with detailed answers, tables, and diagrams." />
-  <title>AI Engineer — Questions and answers</title>
+  <meta name="apple-mobile-web-app-title" content="GenAI Prep" />
+  <title>GenAI Engineer Interview Prep</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
@@ -19,79 +17,108 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="app">
-    <div id="scrim" class="scrim" hidden></div>
-
-    <aside id="sidebar" class="sidebar">
-      <div class="sidebar-head">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="app-shell">
+    <aside id="sidebar" class="sidebar" aria-label="Primary navigation">
+      <div class="sidebar-header">
         <div class="brand">
-          <p class="brand-kicker">AI Engineer</p>
-          <h1>Topics</h1>
+          <span class="brand-logo" aria-hidden="true">✦</span>
+          <div>
+            <p class="kicker">Interview Prep</p>
+            <h1>GenAI Engineer</h1>
+          </div>
         </div>
-        <button type="button" id="btnCloseSidebar" class="icon-btn close-sidebar" aria-label="Close menu">
-          <span aria-hidden="true">×</span>
+        <button id="closeSidebarBtn" class="icon-btn desktop-hidden" type="button" aria-label="Close menu">✕</button>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-route="#/home" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z"/></svg>
+          <span>Home</span>
         </button>
-      </div>
-      <div class="sidebar-tools">
-        <label class="search-wrap">
-          <span class="search-icon" aria-hidden="true"></span>
-          <span class="sr-only">Search questions</span>
-          <input id="search" type="search" placeholder="Search topics" autocomplete="off" />
-          <button type="button" id="btnClearSearch" class="search-clear" hidden aria-label="Clear search">×</button>
-        </label>
-        <div class="chips" role="tablist" aria-label="Filter questions">
-          <button type="button" class="chip active" data-filter="all">All</button>
-          <button type="button" class="chip" data-filter="priority">First 15</button>
-          <button type="button" class="chip" data-filter="todo">To do</button>
-          <button type="button" class="chip" data-filter="done">Done</button>
-        </div>
-        <div class="progress-block">
-          <div class="side-progress"><span id="progressBar"></span></div>
-          <p id="progressLine" class="progress-line"></p>
-        </div>
-      </div>
-      <p class="sr-only" id="brandSub"></p>
-      <nav id="nav" class="nav" aria-label="Questions by topic"></nav>
-      <div class="sidebar-foot">
-        <button type="button" id="btnLibrary" class="btn ghost library-link">All topics</button>
-        <button type="button" id="btnInstallSidebar" class="btn install-btn" hidden>Install app</button>
-        <p id="iosHint" class="ios-hint" hidden>iPhone: Share → Add to Home Screen</p>
+        <button class="nav-item" data-route="#/categories" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4zm9 0h7v7h-7zm-9 9h7v7H4zm9 0h7v7h-7z"/></svg>
+          <span>Categories</span>
+        </button>
+        <button class="nav-item" data-route="#/bookmarks" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h12a1 1 0 0 1 1 1v19l-7-4.5L5 22V3a1 1 0 0 1 1-1z"/></svg>
+          <span>Bookmarks</span>
+        </button>
+        <button class="nav-item" data-route="#/progress" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10h4v10zm6 0V4h4v16zm6 0v-7h4v7z"/></svg>
+          <span>Progress</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button id="themeBtn" class="ghost-btn" type="button">
+          <span class="theme-icon" aria-hidden="true">◐</span>
+          <span id="themeLabel">Dark mode</span>
+        </button>
+        <button id="installBtnSide" class="primary-btn" type="button" hidden>Install app</button>
       </div>
     </aside>
 
-    <main class="main">
-      <header class="site-header">
-        <button type="button" id="btnMenu" class="icon-btn menu-btn" aria-label="Open question list" aria-controls="sidebar">
-          <span class="hamburger"></span>
+    <div id="scrim" class="scrim" hidden></div>
+
+    <div class="main-shell">
+      <header class="topbar">
+        <button id="openSidebarBtn" class="icon-btn desktop-hidden" type="button" aria-label="Open menu">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
         </button>
-        <p id="mobileTitle" class="header-title">Question library</p>
-        <p id="packLabel" class="sr-only">Practice pack</p>
-        <details class="more">
-          <summary>More</summary>
-          <div class="more-menu">
-            <button type="button" id="btnExportOfficial">Download Q&amp;A JSON</button>
-            <button type="button" id="btnExportUser">Export my notes</button>
-            <label class="file-btn">
-              Import notes
-              <input type="file" id="importUser" accept="application/json" hidden />
-            </label>
-          </div>
-        </details>
-        <button type="button" id="btnInstall" class="btn install-btn header-install" hidden>Install</button>
+        <div class="title-wrap">
+          <h2 id="screenTitle">Home</h2>
+          <p id="screenSubtitle" class="kicker">GenAI Engineer prep</p>
+        </div>
+        <label class="search-field">
+          <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 2a8 8 0 1 0 4.9 14.3l5.4 5.4 1.4-1.4-5.4-5.4A8 8 0 0 0 10 2zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12z"/></svg>
+          <span class="visually-hidden">Search questions and answers</span>
+          <input id="searchInput" type="search" placeholder="Search questions..." autocomplete="off" />
+        </label>
+        <button id="filterToggle" class="icon-btn filter-btn" type="button" aria-label="Show filters" aria-expanded="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18l-7 8v5l-4 2v-7z"/></svg>
+        </button>
+        <button id="themeBtnTop" class="icon-btn" type="button" aria-label="Toggle dark mode">
+          <span id="themeIconTop" aria-hidden="true">🌙</span>
+        </button>
+        <button id="installBtnTop" class="primary-btn compact" type="button" hidden>Install</button>
       </header>
-      <article id="panel" class="panel"></article>
-      <nav class="dock" aria-label="Quick navigation">
-        <button type="button" id="btnPrevDock" class="dock-btn">Previous</button>
-        <button type="button" id="btnHomeDock" class="dock-btn home" aria-label="Go to topic home">
+
+      <div class="filter-panel" id="filterRow" hidden>
+        <select id="categoryFilter" aria-label="Filter by category">
+          <option value="all">All categories</option>
+        </select>
+        <select id="difficultyFilter" aria-label="Filter by difficulty">
+          <option value="all">Any difficulty</option>
+          <option value="beginner">Beginner</option>
+          <option value="intermediate">Intermediate</option>
+          <option value="advanced">Advanced</option>
+        </select>
+      </div>
+
+      <main id="main" class="content" tabindex="-1"></main>
+
+      <nav class="bottom-nav" aria-label="Mobile navigation">
+        <button class="bottom-nav-item active" data-route="#/home" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z"/></svg>
           <span>Home</span>
-          <small id="dockCount">topics</small>
         </button>
-        <button type="button" id="btnNextDock" class="dock-btn primary">Next</button>
+        <button class="bottom-nav-item" data-route="#/categories" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4zm9 0h7v7h-7zm-9 9h7v7H4zm9 0h7v7h-7z"/></svg>
+          <span>Topics</span>
+        </button>
+        <button class="bottom-nav-item" data-route="#/bookmarks" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h12a1 1 0 0 1 1 1v19l-7-4.5L5 22V3a1 1 0 0 1 1-1z"/></svg>
+          <span>Saved</span>
+        </button>
+        <button class="bottom-nav-item" data-route="#/progress" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10h4v10zm6 0V4h4v16zm6 0v-7h4v7z"/></svg>
+          <span>Progress</span>
+        </button>
       </nav>
-    </main>
+    </div>
   </div>
 
-  <script src="questions-data.js"></script>
-  <script src="app.js"></script>
+  <script type="module" src="js/app.js"></script>
 </body>
 </html>

@@ -1,13 +1,24 @@
-const CACHE = "interview-prep-v10";
-const ASSETS = [
+const CACHE_NAME = "genai-prep-v11";
+const APP_SHELL = [
   "./",
   "./index.html",
   "./styles.css",
-  "./app.js",
-  "./questions-data.js",
-  "./questions.json",
-  "./questions-rest.json",
   "./manifest.webmanifest",
+  "./data/content.js",
+  "./data/section-python.js",
+  "./data/section-fastapi.js",
+  "./data/section-genai.js",
+  "./data/section-rag.js",
+  "./data/section-agentic.js",
+  "./data/section-cloud.js",
+  "./data/section-ops.js",
+  "./data/section-system-customer.js",
+  "./data/section-security-scenarios.js",
+  "./js/app.js",
+  "./js/render.js",
+  "./js/search.js",
+  "./js/state.js",
+  "./js/pwa.js",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/icon-maskable-192.png",
@@ -16,49 +27,48 @@ const ASSETS = [
   "./icons/favicon-32.png"
 ];
 
-self.addEventListener("install", function (event) {
+self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE).then(function (cache) {
-      return cache.addAll(ASSETS);
-    }).then(function () {
-      return self.skipWaiting();
-    })
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => cache.addAll(APP_SHELL))
+      .then(() => self.skipWaiting())
   );
 });
 
-self.addEventListener("activate", function (event) {
+self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then(function (keys) {
-      return Promise.all(keys.filter(function (k) { return k !== CACHE; }).map(function (k) {
-        return caches.delete(k);
-      }));
-    }).then(function () {
-      return self.clients.claim();
-    })
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))
+      )
+      .then(() => self.clients.claim())
   );
 });
 
-self.addEventListener("fetch", function (event) {
+self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
-  var url = new URL(event.request.url);
+  const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
 
   event.respondWith(
-    fetch(event.request).then(function (res) {
-      if (res && res.ok) {
-        var copy = res.clone();
-        caches.open(CACHE).then(function (cache) {
-          cache.put(event.request, copy);
-        });
-      }
-      return res;
-    }).catch(function () {
-      return caches.match(event.request).then(function (cached) {
-        if (cached) return cached;
-        if (event.request.mode === "navigate") {
-          return caches.match("./index.html");
-        }
-        return cached;
+    caches.match(event.request).then((cached) => {
+      const network = fetch(event.request)
+        .then((response) => {
+          if (response && response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return response;
+        })
+        .catch(() => cached);
+
+      if (cached) return cached;
+      return network.then((response) => {
+        if (response) return response;
+        if (event.request.mode === "navigate") return caches.match("./index.html");
+        return new Response("Offline", { status: 503, statusText: "Offline" });
       });
     })
   );
